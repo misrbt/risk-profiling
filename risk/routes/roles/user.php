@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\SelectionConfigController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\EditRequestController;
 use Illuminate\Support\Facades\Route;
@@ -10,6 +11,7 @@ Route::middleware(['auth:sanctum', 'status', 'role:users'])->prefix('user')->gro
     // Risk assessment functionality - Core function for users
     Route::get('/criteria', [CustomerController::class, 'getCriteria'])->middleware(['role.permission:permission,create-risk-assessments']);
     Route::get('/risk-thresholds', [CustomerController::class, 'getRiskThresholds'])->middleware(['role.permission:permission,create-risk-assessments']);
+    Route::get('/risk-settings/selection-config', [SelectionConfigController::class, 'index'])->middleware(['role.permission:permission,create-risk-assessments']);
     Route::post('/customers', [CustomerController::class, 'createCustomer'])->middleware(['role.permission:permission,create-risk-assessments']);
     Route::get('/customers-list', [CustomerController::class, 'getCustomers'])->middleware(['role.permission:permission,view-customers']);
 
@@ -20,6 +22,7 @@ Route::middleware(['auth:sanctum', 'status', 'role:users'])->prefix('user')->gro
 
     // Customer listing access for users
     Route::get('/customers', [CustomerController::class, 'index'])->middleware(['role.permission:permission,view-customers']);
+
 
     // Customer routes for approved edit access
     Route::get('/customers/{id}', [CustomerController::class, 'show'])->middleware(['role.permission:permission,view-customers']);

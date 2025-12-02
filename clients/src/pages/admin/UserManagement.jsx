@@ -12,6 +12,8 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   KeyIcon,
+  SignalIcon,
+  UserGroupIcon,
 } from "@heroicons/react/24/outline";
 import {
   useReactTable,
@@ -27,6 +29,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import UserModal from "../../components/Modals/UserModal";
 import { API_ENDPOINTS } from "../../config/constants";
+import ActiveUsersTab from "../../components/ActiveUsersTab";
 
 const UserManagement = () => {
   const { user: currentUser, logout } = useAuth();
@@ -40,6 +43,7 @@ const UserManagement = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [activeTab, setActiveTab] = useState("users"); // 'users' or 'active'
 
   const fetchUsers = useCallback(async (isInitial = false) => {
     try {
@@ -174,7 +178,7 @@ const UserManagement = () => {
 
       if (result.isConfirmed) {
         try {
-          const response = await api.post(`/users/${userId}/reset-password`);
+          const response = await api.post(`/admin/users/${userId}/reset-password`);
 
           await fetchUsers();
 
@@ -264,7 +268,7 @@ const UserManagement = () => {
 
       if (result.isConfirmed) {
         try {
-          await api.delete(`/users/${userId}`);
+          await api.delete(`/admin/users/${userId}`);
           await fetchUsers();
           Swal.fire({
             title: "Deleted!",
@@ -305,7 +309,7 @@ const UserManagement = () => {
   const handleStatusChange = useCallback(
     async (userId, newStatus) => {
       try {
-        await api.put(`/users/${userId}/status`, { status: newStatus });
+        await api.put(`/admin/users/${userId}/status`, { status: newStatus });
         await fetchUsers();
         Swal.fire({
           title: "Success",
@@ -348,6 +352,7 @@ const UserManagement = () => {
       compliance: "bg-indigo-100 text-indigo-800",
       manager: "bg-green-100 text-green-800",
       users: "bg-gray-100 text-gray-800",
+      audit: "bg-orange-100 text-gray-800",
     };
     return colors[roleSlug] || "bg-gray-100 text-gray-800";
   }, []);
@@ -565,7 +570,7 @@ const UserManagement = () => {
       className="w-full"
     >
       {/* Header */}
-      <div className="mb-12 sm:mb-8 md:mb-12">
+      <div className="mb-6">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
           User Management
         </h1>
@@ -574,6 +579,41 @@ const UserManagement = () => {
         </p>
       </div>
 
+      {/* Tabs */}
+      <div className="mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`${
+                activeTab === 'users'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+            >
+              <UserIcon className="w-5 h-5 mr-2" />
+              All Users
+            </button>
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`${
+                activeTab === 'active'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+            >
+              <SignalIcon className="w-5 h-5 mr-2" />
+              Active Users
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'active' ? (
+        <ActiveUsersTab />
+      ) : (
+        <>
       {/* Actions Bar */}
       <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
@@ -838,6 +878,9 @@ const UserManagement = () => {
           </div>
         )}
       </div>
+
+        </>
+      )}
 
       {/* User Modal */}
       <UserModal

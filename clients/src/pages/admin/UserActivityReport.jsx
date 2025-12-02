@@ -25,9 +25,15 @@ import {
 import api from "../../services/api";
 import Swal from "sweetalert2";
 import { API_ENDPOINTS } from "../../config/constants";
+import { usePermissions } from "../../hooks/usePermissions";
+import { useLocation } from "react-router-dom";
 
 const UserActivityReport = () => {
   console.log('🔄 UserActivityReport: Component starting to render');
+  const { isAudit } = usePermissions();
+  const location = useLocation();
+  const isAuditRole = isAudit || location.pathname.startsWith('/audit');
+
   const [activities, setActivities] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [users, setUsers] = useState([]);
@@ -134,19 +140,64 @@ const UserActivityReport = () => {
         </div>
       ),
     }),
-    columnHelper.accessor("performed_at", {
+    columnHelper.accessor((row) => row.performed_at || row.formatted_date, {
+      id: "when_activity",
       header: "When",
       size: 180,
-      cell: (info) => (
-        <div>
-          <div className="text-sm text-gray-900">
-            {info.row.original.formatted_date}
+      cell: (info) => {
+        const row = info.row.original;
+        const timestamp = row.performed_at;
+
+        // If no timestamp, use formatted_date from backend as fallback
+        if (!timestamp) {
+          return (
+            <div>
+              <div className="text-sm text-gray-900">{row.formatted_date || 'N/A'}</div>
+              {row.time_ago && <div className="text-xs text-gray-500">{row.time_ago}</div>}
+            </div>
+          );
+        }
+
+        const date = new Date(timestamp);
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+          return (
+            <div>
+              <div className="text-sm text-gray-900">{row.formatted_date || 'N/A'}</div>
+              {row.time_ago && <div className="text-xs text-gray-500">{row.time_ago}</div>}
+            </div>
+          );
+        }
+
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        let timeAgo;
+        if (diffMins < 1) timeAgo = 'Just now';
+        else if (diffMins < 60) timeAgo = `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        else if (diffHours < 24) timeAgo = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        else if (diffDays < 7) timeAgo = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        else timeAgo = date.toLocaleDateString();
+
+        const formattedDate = date.toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+
+        return (
+          <div>
+            <div className="text-sm text-gray-900">{formattedDate}</div>
+            <div className="text-xs text-gray-500">{timeAgo}</div>
           </div>
-          <div className="text-xs text-gray-500">
-            {info.row.original.time_ago}
-          </div>
-        </div>
-      ),
+        );
+      },
     }),
     columnHelper.accessor("ip_address", {
       header: "IP Address",
@@ -249,17 +300,64 @@ const UserActivityReport = () => {
         </div>
       ),
     }),
-    columnHelper.accessor("formatted_date", {
+    columnHelper.accessor((row) => row.created_at || row.formatted_date, {
+      id: "when_audit",
       header: "When",
       size: 150,
-      cell: (info) => (
-        <div>
-          <div className="text-sm text-gray-900">{info.getValue()}</div>
-          <div className="text-xs text-gray-500">
-            {info.row.original.time_ago}
+      cell: (info) => {
+        const row = info.row.original;
+        const timestamp = row.created_at;
+
+        // If no timestamp, use formatted_date from backend as fallback
+        if (!timestamp) {
+          return (
+            <div>
+              <div className="text-sm text-gray-900">{row.formatted_date || 'N/A'}</div>
+              {row.time_ago && <div className="text-xs text-gray-500">{row.time_ago}</div>}
+            </div>
+          );
+        }
+
+        const date = new Date(timestamp);
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+          return (
+            <div>
+              <div className="text-sm text-gray-900">{row.formatted_date || 'N/A'}</div>
+              {row.time_ago && <div className="text-xs text-gray-500">{row.time_ago}</div>}
+            </div>
+          );
+        }
+
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        let timeAgo;
+        if (diffMins < 1) timeAgo = 'Just now';
+        else if (diffMins < 60) timeAgo = `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        else if (diffHours < 24) timeAgo = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        else if (diffDays < 7) timeAgo = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        else timeAgo = date.toLocaleDateString();
+
+        const formattedDate = date.toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+
+        return (
+          <div>
+            <div className="text-sm text-gray-900">{formattedDate}</div>
+            <div className="text-xs text-gray-500">{timeAgo}</div>
           </div>
-        </div>
-      ),
+        );
+      },
     }),
     columnHelper.accessor("ip_address", {
       header: "IP Address",
@@ -351,7 +449,8 @@ const UserActivityReport = () => {
       };
 
       console.log("Fetching activities with params:", params);
-      const response = await api.get(API_ENDPOINTS.USER_ACTIVITIES, { params });
+      const endpoint = isAuditRole ? API_ENDPOINTS.AUDIT_USER_ACTIVITIES : API_ENDPOINTS.USER_ACTIVITIES;
+      const response = await api.get(endpoint, { params });
       console.log("Activities response:", response.data);
 
       if (response.data.success) {
@@ -386,7 +485,8 @@ const UserActivityReport = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get(API_ENDPOINTS.USER_ACTIVITIES_STATS);
+      const endpoint = isAuditRole ? API_ENDPOINTS.AUDIT_USER_ACTIVITIES_STATS : API_ENDPOINTS.USER_ACTIVITIES_STATS;
+      const response = await api.get(endpoint);
       if (response.data.success) {
         setStats(response.data.data);
       }
@@ -406,7 +506,8 @@ const UserActivityReport = () => {
       };
 
       console.log("🔄 UserActivityReport: Fetching audit logs with params:", params);
-      const response = await api.get(API_ENDPOINTS.AUDIT_LOGS, { params });
+      const endpoint = isAuditRole ? API_ENDPOINTS.AUDIT_LOGS : API_ENDPOINTS.ADMIN_AUDIT_LOGS;
+      const response = await api.get(endpoint, { params });
       console.log("✅ UserActivityReport: Audit logs response:", response.data);
 
       if (response.data.success) {
@@ -444,7 +545,8 @@ const UserActivityReport = () => {
 
   const fetchAuditStats = async () => {
     try {
-      const response = await api.get(API_ENDPOINTS.AUDIT_LOGS_STATS);
+      const endpoint = isAuditRole ? API_ENDPOINTS.AUDIT_LOGS_STATS : API_ENDPOINTS.ADMIN_AUDIT_LOGS_STATS;
+      const response = await api.get(endpoint);
       if (response.data.success) {
         setAuditStats(response.data.data);
       }
@@ -573,7 +675,7 @@ const UserActivityReport = () => {
   if (error) {
     console.log('🚨 UserActivityReport: Rendering error state');
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -623,7 +725,7 @@ const UserActivityReport = () => {
   });
 
   return (
-    <div className="p-4 max-w-full mx-auto">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">

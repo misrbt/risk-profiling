@@ -1798,7 +1798,7 @@ export default function RiskSettings() {
                         />
                         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                           <span className="text-gray-400 text-sm">
-                            {optionForm.points === "1" ? "point" : "points"}
+                            {optionForm.points === "0" || optionForm.points === "1" ? "point" : "points"}
                           </span>
                         </div>
                       </div>

@@ -159,7 +159,7 @@ const AdminDashboard = () => {
 
   // Helper function to navigate to customer list with filters
   const navigateToCustomerList = (riskLevel = null) => {
-    const baseRoute = '/admin/customers';
+    const baseRoute = "/admin/customers";
     if (riskLevel) {
       navigate(`${baseRoute}?risk=${riskLevel}`);
     } else {
@@ -364,8 +364,18 @@ const AdminDashboard = () => {
                   className="group inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-blue-100 hover:text-white text-xs font-medium rounded-md transition-all duration-200 backdrop-blur-sm border border-white/20 hover:border-white/30"
                 >
                   <span>View Details</span>
-                  <svg className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg
+                    className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                 </button>
               </div>
@@ -384,12 +394,22 @@ const AdminDashboard = () => {
                 <p className="text-2xl font-bold">{riskStats.low}</p>
                 <p className="text-xs text-green-100 mt-1">Safe clients</p>
                 <button
-                  onClick={() => navigateToCustomerList('low')}
+                  onClick={() => navigateToCustomerList("low")}
                   className="group inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-green-100 hover:text-white text-xs font-medium rounded-md transition-all duration-200 backdrop-blur-sm border border-white/20 hover:border-white/30"
                 >
                   <span>View Details</span>
-                  <svg className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg
+                    className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                 </button>
               </div>
@@ -412,12 +432,22 @@ const AdminDashboard = () => {
                   Monitoring required
                 </p>
                 <button
-                  onClick={() => navigateToCustomerList('moderate')}
+                  onClick={() => navigateToCustomerList("moderate")}
                   className="group inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-yellow-100 hover:text-white text-xs font-medium rounded-md transition-all duration-200 backdrop-blur-sm border border-white/20 hover:border-white/30"
                 >
                   <span>View Details</span>
-                  <svg className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg
+                    className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                 </button>
               </div>
@@ -436,12 +466,22 @@ const AdminDashboard = () => {
                 <p className="text-2xl font-bold">{riskStats.high}</p>
                 <p className="text-xs text-red-100 mt-1">Immediate attention</p>
                 <button
-                  onClick={() => navigateToCustomerList('high')}
+                  onClick={() => navigateToCustomerList("high")}
                   className="group inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-red-100 hover:text-white text-xs font-medium rounded-md transition-all duration-200 backdrop-blur-sm border border-white/20 hover:border-white/30"
                 >
                   <span>View Details</span>
-                  <svg className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <svg
+                    className="w-3 h-3 transition-transform duration-200 group-hover:translate-x-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
                   </svg>
                 </button>
               </div>

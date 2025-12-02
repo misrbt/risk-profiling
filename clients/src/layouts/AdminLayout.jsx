@@ -50,7 +50,7 @@ const AdminLayout = () => {
         </div>
 
         {/* Page Content - Centered within the available space */}
-        <main className="flex-1 overflow-auto bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 scrollbar-hide">
           <div className="w-full max-w-screen-xl 2xl:max-w-screen-2xl mx-auto p-3  sm:p-4 lg:p-6 pb-24 my-10">
             <Outlet />
           </div>

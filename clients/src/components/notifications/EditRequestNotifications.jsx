@@ -4,20 +4,30 @@ import axios from "axios";
 import { API_ENDPOINTS } from "../../config/constants";
 import { useAuth } from "../../contexts/AuthContext";
 import { successAlert, errorAlert } from "../../utils/sweetAlertConfig";
+import { useRealtimeNotifications } from "../../hooks/useRealtimeNotifications";
 
 const EditRequestNotifications = () => {
   const { hasRole } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(true);
+
+  // Use real-time notifications hook
+  const {
+    isConnected,
+    connectionStatus,
+    pendingRequests,
+    hasUnreadNotifications,
+    markAsRead,
+    removePendingRequest,
+  } = useRealtimeNotifications();
 
   // Only show for managers
   if (!hasRole('manager')) {
     return null;
   }
 
+  // Fallback API call for when WebSocket is not connected
   const fetchPendingRequests = async () => {
     setLoading(true);
     const token = localStorage.getItem("authToken");
@@ -31,25 +41,8 @@ const EditRequestNotifications = () => {
         },
       });
 
-      if (response.data.success) {
-        const newRequests = response.data.data;
-        const previousCount = pendingRequests.length;
-        setPendingRequests(newRequests);
-
-        // Logic for badge visibility:
-        // 1. If no requests, hide badge
-        // 2. If dropdown is open, don't show badge (user is viewing)
-        // 3. If there are new requests compared to before, show badge
-        // 4. If there are requests but dropdown was never opened, show badge
-        if (newRequests.length === 0) {
-          setHasUnreadNotifications(false);
-        } else if (!isOpen) {
-          // Only show badge when dropdown is closed and there are requests
-          if (newRequests.length > previousCount || hasUnreadNotifications) {
-            setHasUnreadNotifications(true);
-          }
-        }
-      }
+      // This is now just for fallback - real-time hook manages the state
+      console.log("Fallback API call result:", response.data);
     } catch (error) {
       console.error("Error fetching pending requests:", error);
     } finally {
@@ -57,19 +50,21 @@ const EditRequestNotifications = () => {
     }
   };
 
+  // Fallback polling when WebSocket is not connected
   useEffect(() => {
-    fetchPendingRequests();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchPendingRequests, 30000);
-    return () => clearInterval(interval);
-  }, [isOpen]); // Add isOpen as dependency to handle state changes
+    if (!isConnected) {
+      fetchPendingRequests();
+      const interval = setInterval(fetchPendingRequests, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isConnected]);
 
   // Reset unread state when dropdown opens
   useEffect(() => {
     if (isOpen && pendingRequests.length > 0) {
-      setHasUnreadNotifications(false);
+      markAsRead();
     }
-  }, [isOpen, pendingRequests.length]);
+  }, [isOpen, pendingRequests.length, markAsRead]);
 
   const handleAction = async (requestId, action, notes = '') => {
     setActionLoading(requestId);
@@ -97,14 +92,8 @@ const EditRequestNotifications = () => {
           response.data.message
         );
 
-        // Remove the request from the list
-        const updatedRequests = pendingRequests.filter(req => req.id !== requestId);
-        setPendingRequests(updatedRequests);
-
-        // Update badge state based on remaining requests
-        if (updatedRequests.length === 0) {
-          setHasUnreadNotifications(false);
-        }
+        // Remove the request from the local list (WebSocket will also handle this)
+        removePendingRequest(requestId);
       }
     } catch (error) {
       console.error("Error updating request status:", error);
@@ -129,7 +118,7 @@ const EditRequestNotifications = () => {
           setIsOpen(!isOpen);
           // Mark notifications as read when opening the dropdown
           if (!isOpen && pendingRequests.length > 0) {
-            setHasUnreadNotifications(false);
+            markAsRead();
           }
         }}
         className="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-full transition-colors"
@@ -161,6 +150,15 @@ const EditRequestNotifications = () => {
             {pendingRequests.length > 99 ? '99+' : pendingRequests.length}
           </span>
         )}
+
+        {/* Connection Status Indicator */}
+        <span
+          className={`absolute -bottom-1 -right-1 w-2 h-2 rounded-full ${
+            isConnected ? 'bg-green-400' : 'bg-yellow-400'
+          }`}
+          title={`Real-time ${isConnected ? 'connected' : 'disconnected'} (${connectionStatus})`}
+        ></span>
+
       </button>
 
       {/* Dropdown */}
@@ -175,9 +173,27 @@ const EditRequestNotifications = () => {
           >
             <div className="p-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Edit Requests
-                </h3>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Edit Requests
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isConnected
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full mr-1 ${
+                          isConnected ? 'bg-green-400' : 'bg-yellow-400'
+                        }`}
+                      ></span>
+                      {isConnected ? 'Real-time' : 'Polling'}
+                    </span>
+                  </div>
+                </div>
                 <button
                   onClick={() => setIsOpen(false)}
                   className="text-gray-400 hover:text-gray-600"

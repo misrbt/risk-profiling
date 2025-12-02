@@ -24,6 +24,11 @@ const SecuritySettings = () => {
     require_password_lowercase: true,
     require_password_numbers: true,
     require_password_symbols: true,
+    password_expiration_enabled: false,
+    password_expiration_months: 3,
+    password_expiration_roles: ["Manager", "Audit", "Compliance", "User"],
+    two_factor_enabled: false,
+    two_factor_roles: ["Manager", "Audit", "Compliance", "User"],
   });
   const [errors, setErrors] = useState({});
 
@@ -93,6 +98,26 @@ const SecuritySettings = () => {
           require_password_symbols:
             settingsMap.require_password_symbols?.value === true ||
             settingsMap.require_password_symbols?.value === "true",
+          password_expiration_enabled:
+            settingsMap.password_expiration_enabled?.value === true ||
+            settingsMap.password_expiration_enabled?.value === "true",
+          password_expiration_months:
+            parseInt(settingsMap.password_expiration_months?.value) || 3,
+          password_expiration_roles:
+            settingsMap.password_expiration_roles?.value
+              ? (typeof settingsMap.password_expiration_roles.value === 'string'
+                  ? JSON.parse(settingsMap.password_expiration_roles.value)
+                  : settingsMap.password_expiration_roles.value)
+              : ["Manager", "Audit", "Compliance", "User"],
+          two_factor_enabled:
+            settingsMap.two_factor_enabled?.value === true ||
+            settingsMap.two_factor_enabled?.value === "true",
+          two_factor_roles:
+            settingsMap.two_factor_roles?.value
+              ? (typeof settingsMap.two_factor_roles.value === 'string'
+                  ? JSON.parse(settingsMap.two_factor_roles.value)
+                  : settingsMap.two_factor_roles.value)
+              : ["Manager", "Audit", "Compliance", "User"],
         });
       }
     } catch (error) {
@@ -213,6 +238,27 @@ const SecuritySettings = () => {
           type: "boolean",
           group: "security",
           description: "Require symbols in password",
+        },
+        {
+          key: "password_expiration_enabled",
+          value: formData.password_expiration_enabled,
+          type: "boolean",
+          group: "security",
+          description: "Enable password expiration policy",
+        },
+        {
+          key: "password_expiration_months",
+          value: formData.password_expiration_months,
+          type: "number",
+          group: "security",
+          description: "Number of months until password expires",
+        },
+        {
+          key: "password_expiration_roles",
+          value: JSON.stringify(formData.password_expiration_roles),
+          type: "json",
+          group: "security",
+          description: "Roles affected by password expiration (Admin is always excluded)",
         },
       ];
 
@@ -495,6 +541,160 @@ const SecuritySettings = () => {
                       </p>
                     </div>
                   </label>
+                </div>
+              </div>
+
+              {/* Password Expiration */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Password Expiration Policy
+                </label>
+                <div className="space-y-4">
+                  {/* Enable/Disable Toggle */}
+                  <label className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      name="password_expiration_enabled"
+                      checked={formData.password_expiration_enabled}
+                      onChange={handleInputChange}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      disabled={saving}
+                    />
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-gray-900">
+                        Enable Password Expiration
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Require users to change their passwords periodically (Admin is always excluded)
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Expiration Months - Only show if enabled */}
+                  {formData.password_expiration_enabled && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Password Expires After (Months)
+                        </label>
+                        <select
+                          name="password_expiration_months"
+                          value={formData.password_expiration_months}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          disabled={saving}
+                        >
+                          <option value="1">1 Month</option>
+                          <option value="2">2 Months</option>
+                          <option value="3">3 Months</option>
+                          <option value="6">6 Months</option>
+                          <option value="12">12 Months</option>
+                        </select>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Users will be required to change their password after this period
+                        </p>
+                      </div>
+
+                      {/* Affected Roles */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Affected Roles (Admin is always excluded)
+                        </label>
+                        <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
+                          {["Manager", "Audit", "Compliance", "User"].map((role) => (
+                            <label key={role} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={formData.password_expiration_roles.includes(role)}
+                                onChange={(e) => {
+                                  const roles = e.target.checked
+                                    ? [...formData.password_expiration_roles, role]
+                                    : formData.password_expiration_roles.filter(r => r !== role);
+                                  setFormData({ ...formData, password_expiration_roles: roles });
+                                }}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                disabled={saving}
+                              />
+                              <span className="ml-2 text-sm text-gray-700">{role}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Password expiration will only apply to selected roles
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Two-Factor Authentication */}
+              <div className="border-t border-gray-200 pt-8">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center">
+                    <ShieldCheckIcon className="h-5 w-5 text-gray-400 mr-2" />
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Two-Factor Authentication (2FA)
+                    </h3>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Two-Factor Authentication Policy
+                  </label>
+                  <div className="space-y-4">
+                    {/* Enable/Disable Toggle */}
+                    <label className="flex items-center p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        name="two_factor_enabled"
+                        checked={formData.two_factor_enabled}
+                        onChange={handleInputChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        disabled={saving}
+                      />
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-gray-900">
+                          Enable Two-Factor Authentication
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Require users to verify identity with a second factor (Admin is always excluded)
+                        </p>
+                      </div>
+                    </label>
+
+                    {/* Affected Roles - Only show if enabled */}
+                    {formData.two_factor_enabled && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Affected Roles (Admin is always excluded)
+                        </label>
+                        <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
+                          {["Manager", "Audit", "Compliance", "User"].map((role) => (
+                            <label key={role} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={formData.two_factor_roles.includes(role)}
+                                onChange={(e) => {
+                                  const roles = e.target.checked
+                                    ? [...formData.two_factor_roles, role]
+                                    : formData.two_factor_roles.filter(r => r !== role);
+                                  setFormData({ ...formData, two_factor_roles: roles });
+                                }}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                disabled={saving}
+                              />
+                              <span className="ml-2 text-sm text-gray-700">{role}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Two-factor authentication will be required for selected roles
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

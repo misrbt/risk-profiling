@@ -7,4 +7,5 @@ require __DIR__.'/roles/shared.php';
 require __DIR__.'/roles/admin.php';
 require __DIR__.'/roles/manager.php';
 require __DIR__.'/roles/compliance.php';
+require __DIR__.'/roles/audit.php';
 require __DIR__.'/roles/user.php';

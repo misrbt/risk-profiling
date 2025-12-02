@@ -26,8 +26,14 @@ import {
 import api from '../../services/api';
 import Swal from 'sweetalert2';
 import { API_ENDPOINTS } from '../../config/constants';
+import { usePermissions } from '../../hooks/usePermissions';
 
 const AuditLogs = () => {
+  const { isAudit, isAdmin } = usePermissions();
+  // Only consider someone as audit role if they actually have the audit role
+  // Don't use path-based detection as admin can access audit logs too
+  const isAuditRole = isAudit && !isAdmin;
+
   const [auditLogs, setAuditLogs] = useState([]);
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState(null);
@@ -138,14 +144,63 @@ const AuditLogs = () => {
         </div>
       ),
     }),
-    columnHelper.accessor('formatted_date', {
+    columnHelper.accessor((row) => row.created_at || row.formatted_date, {
+      id: 'when',
       header: 'When',
-      cell: (info) => (
-        <div>
-          <div className="text-sm text-gray-900">{info.getValue()}</div>
-          <div className="text-xs text-gray-500">{info.row.original.time_ago}</div>
-        </div>
-      ),
+      cell: (info) => {
+        const row = info.row.original;
+        const timestamp = row.created_at;
+
+        // If no timestamp, use formatted_date from backend as fallback
+        if (!timestamp) {
+          return (
+            <div>
+              <div className="text-sm text-gray-900">{row.formatted_date || 'N/A'}</div>
+              {row.time_ago && <div className="text-xs text-gray-500">{row.time_ago}</div>}
+            </div>
+          );
+        }
+
+        const date = new Date(timestamp);
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+          return (
+            <div>
+              <div className="text-sm text-gray-900">{row.formatted_date || 'N/A'}</div>
+              {row.time_ago && <div className="text-xs text-gray-500">{row.time_ago}</div>}
+            </div>
+          );
+        }
+
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        let timeAgo;
+        if (diffMins < 1) timeAgo = 'Just now';
+        else if (diffMins < 60) timeAgo = `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+        else if (diffHours < 24) timeAgo = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+        else if (diffDays < 7) timeAgo = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        else timeAgo = date.toLocaleDateString();
+
+        const formattedDate = date.toLocaleString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+
+        return (
+          <div>
+            <div className="text-sm text-gray-900">{formattedDate}</div>
+            <div className="text-xs text-gray-500">{timeAgo}</div>
+          </div>
+        );
+      },
     }),
     columnHelper.accessor('ip_address', {
       header: 'IP Address',
@@ -219,17 +274,25 @@ const AuditLogs = () => {
         ...filters,
       };
 
-      const response = await api.get(API_ENDPOINTS.AUDIT_LOGS, { params });
+      const endpoint = isAuditRole ? API_ENDPOINTS.AUDIT_LOGS : API_ENDPOINTS.ADMIN_AUDIT_LOGS;
+      console.log('Fetching audit logs from:', endpoint, 'with params:', params);
+      const response = await api.get(endpoint, { params });
+      console.log('Audit logs response:', response.data);
+
       if (response.data.success) {
         setAuditLogs(response.data.data);
         setTotalPages(response.data.meta.last_page);
         setTotalRecords(response.data.meta.total);
+      } else {
+        throw new Error(response.data.message || 'Failed to load audit logs');
       }
     } catch (error) {
       console.error('Error fetching audit logs:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to fetch audit logs';
       Swal.fire({
         title: 'Error',
-        text: 'Failed to load audit logs',
+        text: errorMessage,
         icon: 'error',
         customClass: { popup: 'rounded-2xl' },
       });
@@ -240,6 +303,12 @@ const AuditLogs = () => {
 
   const fetchUsers = async () => {
     try {
+      // Audit role should not fetch users list for filtering
+      // as they don't have permission to access user management
+      if (isAuditRole) {
+        setUsers([]);
+        return;
+      }
       const response = await api.get(API_ENDPOINTS.USERS);
       if (response.data.success) {
         setUsers(response.data.data);
@@ -251,7 +320,8 @@ const AuditLogs = () => {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get(API_ENDPOINTS.AUDIT_LOGS_STATS);
+      const endpoint = isAuditRole ? API_ENDPOINTS.AUDIT_LOGS_STATS : API_ENDPOINTS.ADMIN_AUDIT_LOGS_STATS;
+      const response = await api.get(endpoint);
       if (response.data.success) {
         setStats(response.data.data);
       }

@@ -24,7 +24,7 @@ import {
 import { useCustomerExport } from "../../hooks/useCustomerExport";
 import CustomerFilters from "../../components/customers/CustomerFilters";
 import CustomerDetailsModal from "../../components/customers/CustomerDetailsModal";
-import RequestEditAccessModal from "../../components/modals/RequestEditAccessModal";
+import RequestEditAccessModal from "../../components/Modals/RequestEditAccessModal";
 import { generatePrintContent } from "../../components/customers/PrintTemplate";
 import { createCustomerColumns } from "../../utils/customerTableColumns.jsx";
 export default function CustomerListPage() {
@@ -39,6 +39,20 @@ export default function CustomerListPage() {
   const [requestCustomer, setRequestCustomer] = useState(null);
   const [branches, setBranches] = useState([]);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // Timeout protection for loading state
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 15000); // 15 second timeout
+
+      return () => clearTimeout(timer);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
 
   const canViewBranches = hasRole('compliance') || hasRole('admin');
   const { filteredCustomers, filters, handleFilterChange, handleClearFilters } =
@@ -155,11 +169,47 @@ export default function CustomerListPage() {
     },
   });
 
-  if (loading) {
+  if (loading && !loadingTimeout) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
         <Card className="p-8">
           <LoadingSpinner size="lg" text="Loading customer data..." />
+        </Card>
+      </div>
+    );
+  }
+
+  // Show error or timeout fallback
+  if (loadingTimeout || error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <Card className="p-8 max-w-md">
+          <div className="text-center">
+            <div className="text-red-500 text-5xl mb-4">⚠️</div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              {loadingTimeout ? "Loading Timeout" : "Error Loading Data"}
+            </h2>
+            <p className="text-gray-600 mb-4">
+              {error || "The page is taking too long to load. This might be a temporary issue."}
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+              >
+                Refresh Page
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.clear();
+                  window.location.href = '/login';
+                }}
+                className="w-full bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+              >
+                Logout and Login Again
+              </button>
+            </div>
+          </div>
         </Card>
       </div>
     );

@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "Risk Profiling Application - Full Stack",
   "scripts": {
-    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
-    "backend": "cd risk && php artisan serve",
+    "dev": "npx concurrently \"npm run backend\" \"npm run websocket\" \"npm run frontend\"",
+    "backend": "cd risk && php artisan serve --host=0.0.0.0 --port=8000",
+    "websocket": "cd risk && php artisan reverb:start --host=0.0.0.0 --port=8082",
     "frontend": "cd clients && npm run dev",
     "install:all": "cd risk && composer install && cd ../clients && npm install",
     "build": "cd clients && npm run build"

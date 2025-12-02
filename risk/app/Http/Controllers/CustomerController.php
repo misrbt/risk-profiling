@@ -53,12 +53,19 @@ class CustomerController extends Controller
             }
 
             $customers = Customer::with('selections')->get()->map(function ($customer) {
+                // Convert to user's timezone or default to Asia/Manila (Philippine Standard Time)
+                $userTimezone = config('app.user_timezone', 'Asia/Manila');
+                // Use copy() to avoid modifying the original Carbon instance
+                $createdAt = $customer->created_at->copy()->timezone($userTimezone);
+
                 return [
                     'id' => $customer->id,
                     'name' => $customer->name,
-                    'created_at' => $customer->created_at,
-                    'date_created' => $customer->created_at->format('M d, Y'),
-                    'time_created' => $customer->created_at->format('h:i A'),
+                    'created_at' => $createdAt->toIso8601String(),
+                    'created_at_timestamp' => $createdAt->timestamp,
+                    'date_created' => $createdAt->format('M d, Y'),
+                    'time_created' => $createdAt->format('h:i A'),
+                    'formatted_datetime' => $createdAt->format('M d, Y h:i A'),
                     'totalScore' => $customer->total_score,
                     'riskLevel' => $customer->risk_level,
                     'selections' => $customer->selections->map(function ($selection) {
@@ -409,10 +416,13 @@ class CustomerController extends Controller
             // Handle case where there are no responses
             if ($allOptionIds->isEmpty()) {
                 return response()->json($customers->map(function ($customer) {
-                    // Ensure created_at is a Carbon instance
+                    // Ensure created_at is a Carbon instance and convert to user timezone
                     $createdAt = $customer->created_at instanceof \Carbon\Carbon
                         ? $customer->created_at
                         : \Carbon\Carbon::parse($customer->created_at);
+
+                    $userTimezone = config('app.user_timezone', 'Asia/Manila');
+                    $createdAt = $createdAt->copy()->timezone($userTimezone);
 
                     return [
                         'id' => $customer->id,
@@ -458,10 +468,13 @@ class CustomerController extends Controller
                         ];
                     })->values()->all();
 
-                // Ensure created_at is a Carbon instance
+                // Ensure created_at is a Carbon instance and convert to user timezone
                 $createdAt = $customer->created_at instanceof \Carbon\Carbon
                     ? $customer->created_at
                     : \Carbon\Carbon::parse($customer->created_at);
+
+                $userTimezone = config('app.user_timezone', 'Asia/Manila');
+                $createdAt = $createdAt->copy()->timezone($userTimezone);
 
                 return [
                     'id' => $customer->id,
@@ -517,6 +530,10 @@ class CustomerController extends Controller
                 $createdAt = $customer->created_at instanceof \Carbon\Carbon
                     ? $customer->created_at
                     : \Carbon\Carbon::parse($customer->created_at);
+
+                // Convert to user timezone
+                $userTimezone = config('app.user_timezone', 'Asia/Manila');
+                $createdAt = $createdAt->copy()->timezone($userTimezone);
 
                 return [
                     'id' => $customer->id,
@@ -596,8 +613,9 @@ class CustomerController extends Controller
                 }
             }
 
-            // For compliance officers, show all customers (no filter)
+            // For compliance officers and audit role, show all customers (no filter)
             // They can see customers from all branches
+            // Admin role also has unrestricted access
 
         } catch (\Exception $e) {
             // Log error but don't break the query - just show all customers
@@ -644,9 +662,9 @@ class CustomerController extends Controller
             ];
         });
 
-        // For non-compliance and non-admin users, filter based on role and branch access
-        // Admin and compliance users see ALL branches (no filtering)
-        if (! $user->hasRole('compliance') && ! $user->hasRole('admin')) {
+        // For non-compliance, non-admin, and non-audit users, filter based on role and branch access
+        // Admin, compliance, and audit users see ALL branches (no filtering)
+        if (! $user->hasRole('compliance') && ! $user->hasRole('admin') && ! $user->hasRole('audit')) {
             if ($user->hasRole('manager')) {
                 // Get the user's branch information
                 $userBranch = $user->branch;

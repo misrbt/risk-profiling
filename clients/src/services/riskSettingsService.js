@@ -10,6 +10,10 @@ const getRiskEndpoints = () => {
 
     // Check if user has admin role
     const isAdmin = userRoles.some(role => role.slug === 'admin');
+    // Check if user has compliance role
+    const isCompliance = userRoles.some(role => role.slug === 'compliance');
+    // Check if user has users role
+    const isUser = userRoles.some(role => role.slug === 'users');
 
     if (isAdmin) {
       return {
@@ -18,8 +22,24 @@ const getRiskEndpoints = () => {
         SELECTION_CONFIG: API_ENDPOINTS.ADMIN_SELECTION_CONFIG,
         RISK_THRESHOLDS: API_ENDPOINTS.ADMIN_RISK_THRESHOLDS,
       };
+    } else if (isCompliance) {
+      // Compliance endpoints
+      return {
+        CRITERIA: API_ENDPOINTS.RISK_CRITERIA,
+        OPTIONS: API_ENDPOINTS.RISK_OPTIONS,
+        SELECTION_CONFIG: API_ENDPOINTS.SELECTION_CONFIG,
+        RISK_THRESHOLDS: '/risk-thresholds',
+      };
+    } else if (isUser) {
+      // User endpoints - users only need selection config
+      return {
+        CRITERIA: API_ENDPOINTS.CRITERIA,
+        OPTIONS: API_ENDPOINTS.RISK_OPTIONS,
+        SELECTION_CONFIG: API_ENDPOINTS.USER_SELECTION_CONFIG,
+        RISK_THRESHOLDS: '/user/risk-thresholds',
+      };
     } else {
-      // Default to compliance endpoints for compliance users
+      // Default to compliance endpoints
       return {
         CRITERIA: API_ENDPOINTS.RISK_CRITERIA,
         OPTIONS: API_ENDPOINTS.RISK_OPTIONS,
@@ -242,10 +262,19 @@ export const riskSettingsService = {
     save: async (data) => {
       try {
         const endpoints = getRiskEndpoints();
+        console.log('[SelectionConfig] Saving to endpoint:', endpoints.SELECTION_CONFIG);
+        console.log('[SelectionConfig] Payload:', data);
         const response = await api.post(endpoints.SELECTION_CONFIG, data);
+        console.log('[SelectionConfig] Response:', response.data);
         return response.data;
       } catch (error) {
-        const message = error.response?.data?.message || 'Failed to save selection configuration';
+        console.error('[SelectionConfig] Error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message
+        });
+        const message = error.response?.data?.message || error.message || 'Failed to save selection configuration';
         const errors = error.response?.data?.errors || {};
         throw { message, errors, status: error.response?.status };
       }

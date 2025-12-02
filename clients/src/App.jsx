@@ -12,9 +12,16 @@ import { SystemSettingsProvider } from "./contexts/SystemSettingsContext";
 import { ProtectedRoute } from "./components/auth";
 import RoleBasedRedirect from "./components/auth/RoleBasedRedirect";
 import ForcePasswordChangeWrapper from "./components/auth/ForcePasswordChangeWrapper";
+import PasswordExpiredWrapper from "./components/auth/PasswordExpiredWrapper";
 import { configureAxios } from "./services/axiosInterceptor";
 import { LoadingSpinner } from "./components/ui";
 import { PERMISSIONS } from "./config/permissions";
+import StatusNotifications from "./components/notifications/StatusNotifications";
+import PasswordExpiryNotification from "./components/notifications/PasswordExpiryNotification";
+import useMaintenanceMode from "./hooks/useMaintenanceMode";
+import MaintenanceMode from "./components/maintenance/MaintenanceMode";
+import { auditRoutes } from "./route";
+import { useActivityHeartbeat } from "./hooks/useActivityHeartbeat";
 
 // Regular user pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -24,7 +31,6 @@ const CustomerListPage = lazy(() =>
   import("./pages/customers/CustomerListPage")
 );
 const Login = lazy(() => import("./pages/Login"));
-const Register = lazy(() => import("./pages/Register"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -43,30 +49,51 @@ const UserActivityReport = lazy(() =>
   import("./pages/admin/UserActivityReport")
 );
 const AuditLogs = lazy(() => import("./pages/admin/AuditLogs"));
+const ActiveUsers = lazy(() => import("./pages/admin/ActiveUsers"));
 const EditRiskAssessmentPage = lazy(() =>
   import("./pages/EditRiskAssessmentPage")
 );
 
-function App() {
+// Component to handle heartbeat inside AuthProvider
+function HeartbeatWrapper({ children }) {
+  useActivityHeartbeat();
+  return children;
+}
+
+function AreviREllocin() {
+  const { isMaintenanceMode, isLoading } = useMaintenanceMode(60000); // Check every minute
+
   // Initialize axios configuration
   useEffect(() => {
     configureAxios();
   }, []);
 
+  // Show loading spinner while checking maintenance status
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
+
+  // Show maintenance mode page if enabled
+  if (isMaintenanceMode) {
+    return <MaintenanceMode />;
+  }
+
   return (
-    <SystemSettingsProvider>
-      <AuthProvider>
-        <Router>
-          <ForcePasswordChangeWrapper>
-            <Suspense fallback={<LoadingSpinner />}>
-              <Routes>
+    <AuthProvider>
+      <SystemSettingsProvider>
+        <HeartbeatWrapper>
+          <Router>
+            <PasswordExpiredWrapper>
+              <ForcePasswordChangeWrapper>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <StatusNotifications />
+                  <PasswordExpiryNotification />
+                <Routes>
                 {/* Auth routes */}
                 <Route path="/" element={<Login />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-
 
                 {/* Admin routes - MUST be first to ensure proper matching */}
                 <Route
@@ -128,6 +155,7 @@ function App() {
                     element={<SecuritySettings />}
                   />
                   <Route path="audit-logs" element={<AuditLogs />} />
+                  <Route path="active-users" element={<ActiveUsers />} />
                   <Route path="profile" element={<ProfilePage />} />
                   <Route index element={<AdminDashboardDirect />} />
                 </Route>
@@ -230,6 +258,9 @@ function App() {
                   }
                 />
 
+                {/* Audit role routes - Read-only access */}
+                {auditRoutes}
+
                 {/* Catch-all route for authenticated users */}
                 <Route
                   path="*"
@@ -239,13 +270,15 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-              </Routes>
-            </Suspense>
-          </ForcePasswordChangeWrapper>
+                </Routes>
+              </Suspense>
+            </ForcePasswordChangeWrapper>
+          </PasswordExpiredWrapper>
         </Router>
-      </AuthProvider>
-    </SystemSettingsProvider>
+        </HeartbeatWrapper>
+      </SystemSettingsProvider>
+    </AuthProvider>
   );
 }
 
-export default App;
+export default AreviREllocin;

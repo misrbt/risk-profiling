@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import api from "../services/api";
 import { API_ENDPOINTS } from "../config/constants";
+import { useAuth } from "./AuthContext";
 
 const SystemSettingsContext = createContext();
 
@@ -15,6 +16,7 @@ export const useSystemSettings = () => {
 };
 
 export const SystemSettingsProvider = ({ children }) => {
+  const { user, hasRole } = useAuth();
   const [settings, setSettings] = useState({
     system_name: "Risk Profiling System", // Default fallback
     company_name: "RBT Bank Inc.",
@@ -29,6 +31,14 @@ export const SystemSettingsProvider = ({ children }) => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
+
+      // Only try to fetch settings if user exists and has admin role
+      if (!user || !hasRole('admin')) {
+        console.log('User does not have admin role or user not loaded, using default settings');
+        setLoading(false);
+        return;
+      }
+
       const response = await api.get(`${API_ENDPOINTS.SYSTEM_SETTINGS_GROUP}/general`);
       if (response.data.success && response.data.data) {
         // Transform the settings array to an object
@@ -55,8 +65,10 @@ export const SystemSettingsProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    if (user) {
+      fetchSettings();
+    }
+  }, [user, hasRole]);
 
   const contextValue = {
     settings,

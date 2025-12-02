@@ -21,7 +21,6 @@ import api, { permissionAPI, roleAPI } from "../../services/api";
 import Swal from "sweetalert2";
 import PermissionModal from "../../components/Modals/PermissionModal";
 import PermissionGate from "../../components/auth/PermissionGate";
-import PermissionTester from "../../components/admin/PermissionTester";
 import { usePermissions } from "../../hooks/usePermissions";
 
 const PermissionManagement = () => {
@@ -512,9 +511,7 @@ const PermissionManagement = () => {
       </div>
 
       {/* Permission Testing Section */}
-      <div className="mt-8">
-        <PermissionTester />
-      </div>
+
 
       {/* Permission Modal */}
       <PermissionModal

@@ -1,13 +1,57 @@
-# Environment files
+# ============================================================================
+# ENVIRONMENT & CONFIGURATION
+# ============================================================================
+# Environment variables - Root level
 .env
 .env.*
 !.env.example
+!.env.testing
 
-# Laravel specific
+# Environment variables - Backend (Laravel)
+/risk/.env
+/risk/.env.*
+!/risk/.env.example
+!/risk/.env.testing
+
+# Environment variables - Frontend (React)
+/clients/.env
+/clients/.env.*
+!/clients/.env.example
+!/clients/.env.testing
+
+# Sensitive configuration files
+config/database.php
+config/mail.php
+config/services.php
+auth.json
+
+# ============================================================================
+# DEPENDENCIES & BUILD ARTIFACTS
+# ============================================================================
+# Laravel dependencies
 /vendor/
+composer.phar
+composer.lock
+
+# Node.js dependencies
 /node_modules/
+/clients/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Build outputs
+/public/build/
+/public/mix-manifest.json
 /public/hot
 /public/storage
+/clients/dist/
+
+# ============================================================================
+# STORAGE & LOGS
+# ============================================================================
+# Laravel storage
 /storage/*.key
 /storage/app/public/*
 !/storage/app/public/.gitkeep
@@ -21,15 +65,121 @@
 !/storage/framework/views/.gitkeep
 /storage/logs/*
 !/storage/logs/.gitkeep
+bootstrap/cache/*
+!bootstrap/cache/.gitkeep
 
-# IDE and editor files
+# Log files
+*.log
+
+# ============================================================================
+# DATABASE & DATA
+# ============================================================================
+# Database files
+*.sqlite
+*.sqlite3
+/database/*.sqlite
+/db/
+*.db
+*.mdb
+
+# Database backups & dumps
+*.sql
+*.sql.gz
+
+# ============================================================================
+# SECURITY & CERTIFICATES
+# ============================================================================
+# SSL certificates and keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+RBT-Bank-Root-CA.crt
+
+# ============================================================================
+# DEPLOYMENT & SCRIPTING
+# ============================================================================
+# Shell scripts (deployment, setup, maintenance)
+*.sh
+
+# Environment-specific configuration files
+*.conf
+nginx-risk-profiling.conf
+
+# Deployment and setup files
+/deployment/
+setup-*.sh
+apply-*.sh
+fix-*.sh
+create-*.sh
+restart-*.sh
+check-*.sh
+install-*.sh
+generate-*.sh
+verify-*.sh
+test-*.sh
+export-*.sh
+open-*.sh
+disable-*.sh
+quick-*.sh
+
+# Service files
+*.service
+
+# ============================================================================
+# DOCUMENTATION & TROUBLESHOOTING
+# ============================================================================
+# Markdown documentation (troubleshooting guides, etc.)
+*.md
+TROUBLESHOOT*.txt
+LOGIN-*.md
+CLEAR-*.md
+COMPLIANCE*.md
+EXTERNAL*.md
+FINAL*.md
+FIREWALL*.md
+INSTALL*.md
+MAINTENANCE*.md
+MANAGER*.md
+NGINX*.md
+NOTIFICATIONS*.md
+PERMISSION*.md
+PRODUCTION*.md
+QUICK*.md
+REALTIME*.md
+REGULAR*.md
+REMOVE*.md
+ROLE*.md
+SSL*.md
+TEST*.md
+TODAYS*.md
+TWO_FACTOR*.md
+UI_*.md
+WEBSOCKET*.md
+*-GUIDE.md
+*-SUMMARY.md
+
+# ============================================================================
+# IDE & EDITOR FILES
+# ============================================================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
 
-# OS generated files
+# Claude Code configuration
+.claude/
+.claude.json
+*/.claude.json
+/clients/.claude.json
+
+# ============================================================================
+# OS GENERATED FILES
+# ============================================================================
 .DS_Store
 .DS_Store?
 ._*
@@ -37,64 +187,54 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+.qodo/
 
-# Dependencies
-composer.phar
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Database
-*.sqlite
-*.sqlite3
-/database/*.sqlite
-
-# Log files
-*.log
-
-# Cache files
-bootstrap/cache/*
-!bootstrap/cache/.gitkeep
-
-# Compiled assets
-/public/build/
-/public/mix-manifest.json
-
-# Backup files
-*.bak
-*.backup
-*.old
-
+# ============================================================================
+# TEMPORARY & DEBUG FILES
+# ============================================================================
 # Temporary files
 *.tmp
 *.temp
+*.bak
+*.backup
+*.old
+_nul
+cookies.txt
+.env.local
+
+# Debug images and screenshots
+*.png
+*.jpg
+*.jpeg
+error.png
+fix.png
+fix*.png
+chart.png
+
+# Test and debug output
+test_output.txt
+debug.log
+*-debug.jsx
+*-test.jsx
+
+# ============================================================================
+# PROJECT SPECIFIC FILES
+# ============================================================================
+# Docs folder
+/docs/
 
 # Docker
 docker-compose.override.yml
-
-# PHP
-auth.json
-
-# Sensitive configuration
-config/database.php
-config/mail.php
-config/services.php
-
-# API keys and credentials
-*.pem
-*.key
-*.crt
-*.p12
-
-# Build artifacts
-/build/
-/dist/
 
 # Coverage reports
 /coverage/
 clover.xml
 
-# Package files
+# Build artifacts
+/build/
+/dist/
+
+# Archive files
 *.7z
 *.dmg
 *.gz
@@ -104,10 +244,5 @@ clover.xml
 *.tar
 *.zip
 
-# Project specific files and folders
-*.md
-cookies.txt
-chart.png
-/db/
-/deployment/
-/docs/
+# Miscellaneous
+.qodo/

@@ -14,7 +14,7 @@ export default function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { canAccess, getDashboardRoute, isAdmin, isCompliance, isManager, isRegularUser } = usePermissions();
+  const { canAccess, getDashboardRoute, isAdmin, isCompliance, isManager, isRegularUser, isAudit } = usePermissions();
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -65,6 +65,15 @@ export default function Navigation() {
 
   const getFilteredNavigationItems = () => {
     if (!user) return [];
+
+    // Audit role has custom navigation
+    if (isAudit) {
+      return [
+        { name: "Dashboard", href: "/audit/dashboard", icon: "dashboard" },
+        { name: "Customers", href: "/audit/customers", icon: "customers" },
+        { name: "Audit Trail", href: "/audit/user-activity", icon: "activity" },
+      ];
+    }
 
     // Filter navigation items based on permissions and role restrictions
     return NAVIGATION_ITEMS.filter((item) => {
@@ -164,6 +173,8 @@ export default function Navigation() {
                         ? "Compliance Officer"
                         : isManager
                         ? "Manager"
+                        : isAudit
+                        ? "Audit"
                         : "User"}
                     </div>
                   )}
@@ -207,6 +218,8 @@ export default function Navigation() {
                               ? "Compliance Officer"
                               : isManager
                               ? "Manager"
+                              : isAudit
+                              ? "Audit"
                               : "User"}
                           </p>
                         )}

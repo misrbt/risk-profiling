@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
 
-  // Initialize auth state from localStorage
+  // Initialize auth state from localStorage (REVERTED TO SIMPLE APPROACH)
   useEffect(() => {
     const initializeAuth = () => {
       try {
@@ -29,14 +29,14 @@ export const AuthProvider = ({ children }) => {
 
         if (storedToken && storedUser) {
           const parsedUser = JSON.parse(storedUser);
-          
+
           setToken(storedToken);
           setUser(parsedUser);
           setIsAuthenticated(true);
-          
+
           // Set axios default header
           axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-          
+
           // Initialize session manager
           setTimeout(async () => {
             await sessionManager.init({
@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }) => {
               setUserData: setUserData
             });
           }, 100);
-          
+
           console.log('Session restored from localStorage');
         } else {
           // No stored auth data
@@ -83,37 +83,45 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (response.data.success) {
-        const { token: authToken, user: userData, password_change_required } = response.data.data;
-        
+        const { token: authToken, user: userData, password_change_required, password_expired, days_until_password_expires } = response.data.data;
+
         // Debug logging
         console.log('AuthContext login - Full response:', response.data);
         console.log('AuthContext login - User data:', userData);
         console.log('AuthContext login - User roles:', userData?.roles);
         console.log('AuthContext login - Password change required:', password_change_required);
-        
+        console.log('AuthContext login - Password expired:', password_expired);
+
         // Store in state
         setToken(authToken);
         setUser(userData);
         setIsAuthenticated(true);
         setPasswordChangeRequired(password_change_required || false);
-        
+
         // Store token in localStorage
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('user', JSON.stringify(userData));
-        
+        localStorage.setItem('password_expired', password_expired ? 'true' : 'false');
+        localStorage.setItem('days_until_password_expires', days_until_password_expires?.toString() || '');
+
         console.log('AuthContext login - Stored in localStorage:', JSON.parse(localStorage.getItem('user')));
-        
+
         // Set axios default header
         axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
-        
+
         // Start session management after successful login
         await sessionManager.init({
           isAuthenticated: true,
           logout: logout,
           setUserData: setUserData
         });
-        
-        return { success: true, user: userData };
+
+        return {
+          success: true,
+          user: userData,
+          password_expired: password_expired || false,
+          days_until_password_expires: days_until_password_expires
+        };
       } else {
         return { success: false, message: response.data.message };
       }

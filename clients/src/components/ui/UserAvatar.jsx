@@ -41,7 +41,7 @@ const UserAvatar = ({ user, size = 'md', className = '', showBorder = false }) =
     if (!user?.profile_pic) return null;
     const baseUrl = user.profile_pic.startsWith('http') 
       ? user.profile_pic 
-      : `${import.meta.env.VITE_API_URL || 'http://risk-profiling.local'}/storage/${user.profile_pic}`;
+      : `${import.meta.env.VITE_API_URL || 'http://risk-profiling.rbtbank.com'}/storage/${user.profile_pic}`;
     
     // Add timestamp to force reload when image changes
     const separator = baseUrl.includes('?') ? '&' : '?';

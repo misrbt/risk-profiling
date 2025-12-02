@@ -7,10 +7,14 @@ import "./styles/ie-fixes.css"; // IE11 compatibility fixes
 import "@fontsource/inter"; // Defaults to weight 400
 import "@fontsource/inter/400.css"; // Specific weight
 import "@fontsource/inter/700.css"; // Bold
-import App from "./App.jsx";
+import AreviREllocin from "./App.jsx";
+import { configureAxios } from "./services/axiosInterceptor";
+
+// Configure axios with baseURL before app renders
+configureAxios();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
+    <AreviREllocin />
   </StrictMode>
 );

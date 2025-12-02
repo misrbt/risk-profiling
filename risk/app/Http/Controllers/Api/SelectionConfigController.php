@@ -13,7 +13,8 @@ class SelectionConfigController extends Controller
     public function __construct()
     {
         $this->middleware(['auth:sanctum', 'status']);
-        $this->middleware('role:admin,compliance');
+        // Permission checks are handled at the route level
+        // No need for additional role middleware here
     }
 
     /**

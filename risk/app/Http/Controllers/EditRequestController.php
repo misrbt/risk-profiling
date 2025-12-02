@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\EditRequestEvent;
+use App\Events\EditRequestStatusNotification;
 use App\Models\Customer;
 use App\Models\EditRequest;
 use App\Models\User;
@@ -67,6 +69,27 @@ class EditRequestController extends Controller
             'manager_id' => $managerResult['manager']?->id,
             'reason' => $request->reason,
             'status' => 'pending',
+        ]);
+
+        // Load relationships for broadcasting
+        $editRequest->load(['user', 'customer']);
+
+        // Broadcast new edit request event
+        $requestData = [
+            'id' => $editRequest->id,
+            'user_name' => $editRequest->user->first_name . ' ' . $editRequest->user->last_name,
+            'user_email' => $editRequest->user->email,
+            'customer_name' => $editRequest->customer->name,
+            'reason' => $editRequest->reason,
+            'created_at' => $editRequest->created_at->format('M d, Y h:i A'),
+            'status' => $editRequest->status
+        ];
+
+        broadcast(new EditRequestEvent('created', $requestData));
+
+        \Log::info('Edit request created - broadcast sent', [
+            'edit_request_id' => $editRequest->id,
+            'request_data' => $requestData
         ]);
 
         // Log user activity
@@ -238,6 +261,43 @@ class EditRequestController extends Controller
             $message = 'Edit request disapproved.';
         }
 
+        // Broadcast request updated event
+        $requestData = [
+            'id' => $editRequest->id,
+            'user_name' => $editRequest->user->first_name . ' ' . $editRequest->user->last_name,
+            'user_email' => $editRequest->user->email,
+            'customer_name' => $editRequest->customer->name,
+            'reason' => $editRequest->reason,
+            'status' => $editRequest->status,
+            'manager_notes' => $editRequest->manager_notes,
+            'updated_at' => $editRequest->updated_at->format('M d, Y h:i A'),
+        ];
+
+        broadcast(new EditRequestEvent('updated', $requestData));
+
+        // Send status notification to the user who made the request
+        $statusMessage = $request->status === 'approved'
+            ? "Your edit request for '{$editRequest->customer->name}' has been approved! You can now edit this customer's information."
+            : "Your edit request for '{$editRequest->customer->name}' has been disapproved.";
+
+        if ($request->manager_notes) {
+            $statusMessage .= " Manager notes: " . $request->manager_notes;
+        }
+
+        broadcast(new EditRequestStatusNotification(
+            $request->status,
+            [
+                'id' => $editRequest->id,
+                'user_id' => $editRequest->user_id,
+                'customer_name' => $editRequest->customer->name,
+                'customer_id' => $editRequest->customer_id,
+                'manager_name' => $user->first_name . ' ' . $user->last_name,
+                'manager_notes' => $request->manager_notes,
+                'status' => $request->status,
+            ],
+            $statusMessage
+        ));
+
         // Log user activity
         try {
             UserActivity::log(
@@ -281,7 +341,7 @@ class EditRequestController extends Controller
         $user = Auth::user();
 
         // Admins and managers can always edit
-        if ($user->hasRole('Administrator') || $user->hasRole('Manager')) {
+        if ($user->hasRole('admin') || $user->hasRole('manager')) {
             return response()->json([
                 'success' => true,
                 'can_edit' => true,

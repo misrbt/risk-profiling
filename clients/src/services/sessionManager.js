@@ -45,7 +45,7 @@ class SessionManager {
     try {
       if (LOGGING_ENABLED) console.log('SessionManager: Loading auto logout settings...');
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://risk-profiling.local/api'}/admin/system-settings/group/security`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://risk-profiling.rbtbank.com/api'}/admin/system-settings/group/security`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
@@ -392,7 +392,7 @@ class SessionManager {
         return false;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://risk-profiling.local/api'}/${API_ENDPOINTS.REFRESH_TOKEN}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://risk-profiling.rbtbank.com/api'}/${API_ENDPOINTS.REFRESH_TOKEN}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${currentToken}`,

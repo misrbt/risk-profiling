@@ -9,6 +9,12 @@ class AuditLogResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        // Convert to user's timezone or default to Asia/Manila (Philippine Standard Time)
+        $userTimezone = config('app.user_timezone', 'Asia/Manila');
+        // Use copy() to avoid modifying the original Carbon instance
+        $createdAt = $this->created_at->copy()->timezone($userTimezone);
+        $updatedAt = $this->updated_at ? $this->updated_at->copy()->timezone($userTimezone) : null;
+
         return [
             'id' => $this->id,
             'user' => [
@@ -27,10 +33,10 @@ class AuditLogResource extends JsonResource
             'ip_address' => $this->ip_address,
             'user_agent' => $this->user_agent,
             'session_id' => $this->session_id,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
-            'formatted_date' => $this->created_at->format('M j, Y g:i A'),
-            'time_ago' => $this->created_at->diffForHumans(),
+            'created_at' => $createdAt->toIso8601String(),
+            'updated_at' => $updatedAt ? $updatedAt->toIso8601String() : null,
+            'formatted_date' => $createdAt->format('M j, Y g:i A'),
+            'time_ago' => $createdAt->diffForHumans(),
             'browser_info' => $this->parseBrowserInfo(),
             'changes_summary' => $this->getChangesSummary(),
         ];

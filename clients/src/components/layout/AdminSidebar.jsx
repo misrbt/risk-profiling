@@ -16,6 +16,12 @@ import {
   KeyIcon,
   UsersIcon,
   Bars3Icon,
+  ClipboardDocumentCheckIcon,
+  UserCircleIcon,
+  AdjustmentsHorizontalIcon,
+  LockClosedIcon,
+  DocumentMagnifyingGlassIcon,
+  SignalIcon,
 } from "@heroicons/react/24/outline";
 import rbtLogo from "../../assets/rbt-logo.png.png";
 
@@ -44,77 +50,91 @@ const AdminSidebar = ({
       path: "/admin/dashboard",
       description: "Overview",
       priority: 1,
+      badge: null,
     },
     {
       title: "Risk Profiling",
       icon: ShieldCheckIcon,
       priority: 1,
+      badge: null,
       children: [
         {
-          title: "Assessment",
+          title: "New Assessment",
           path: "/admin/risk-assessment",
-          description: "Create assessments",
+          description: "Create new",
+          icon: ClipboardDocumentCheckIcon,
         },
         {
-          title: "Customers",
+          title: "Customer Profiles",
           path: "/admin/customers",
-          description: "View profiles",
+          description: "View all",
+          icon: UserCircleIcon,
         },
         {
-          title: "Settings",
+          title: "Risk Settings",
           path: "/admin/risk-settings",
-          description: "Configure criteria",
+          description: "Configure",
+          icon: AdjustmentsHorizontalIcon,
         },
       ],
     },
     {
-      title: "Users",
+      title: "User Management",
       icon: UserGroupIcon,
       priority: 2,
+      badge: null,
       children: [
         {
           title: "All Users",
           path: "/admin/users",
-          description: "Manage accounts",
+          description: "Manage users",
+          icon: UsersIcon,
         },
         {
           title: "Roles",
           path: "/admin/roles",
           description: "Manage roles",
+          icon: ShieldCheckIcon,
         },
         {
           title: "Permissions",
           path: "/admin/permissions",
-          description: "Manage access",
+          description: "Access control",
+          icon: KeyIcon,
         },
       ],
     },
     {
-      title: "Audit Trail",
-      icon: ChartBarIcon,
+      title: "Audit & Reports",
+      icon: DocumentMagnifyingGlassIcon,
       priority: 2,
+      badge: null,
       children: [
         {
-          title: "Activity",
+          title: "User Activity",
           path: "/admin/reports/activity",
-          description: "User reports",
+          description: "Activity logs",
+          icon: ChartBarIcon,
         },
       ],
     },
     {
-      title: "Settings",
+      title: "System Settings",
       icon: CogIcon,
       priority: 3,
+      badge: null,
       children: [
         {
           title: "General",
           path: "/admin/settings/general",
-          description: "System config",
+          description: "System info",
+          icon: AdjustmentsHorizontalIcon,
         },
         {
           title: "Security",
           path: "/admin/settings/security",
-          description: "Security config",
+          description: "Security",
+          icon: LockClosedIcon,
         },
       ],
     },
@@ -149,7 +169,7 @@ const AdminSidebar = ({
 
   return (
     <div
-      className={`bg-white shadow-xl border-r border-slate-200/60 transition-all duration-300 ${
+      className={`bg-gradient-to-b from-white to-slate-50 shadow-xl border-r border-slate-200/60 transition-all duration-300 ${
         collapsed ? "lg:w-20 w-80" : "w-80"
       } h-[calc(100vh-4rem)] flex flex-col`}
     >
@@ -227,9 +247,13 @@ const AdminSidebar = ({
       </div>
 
       {/* Navigation */}
-      <nav className={`flex-1 ${collapsed ? "px-2 py-4" : "px-6 py-6"} space-y-1`}>
-        {getVisibleMenuItems().map((item) => (
+      <nav className={`flex-1 ${collapsed ? "px-2 py-4" : "px-4 py-4"} space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 hover:scrollbar-thumb-slate-400`}>
+        {getVisibleMenuItems().map((item, index) => (
           <div key={item.title}>
+            {/* Section divider */}
+            {!collapsed && index > 0 && item.priority !== getVisibleMenuItems()[index - 1]?.priority && (
+              <div className="my-3 border-t border-slate-200/60"></div>
+            )}
             {item.children ? (
               <div>
                 <div className="relative group">
@@ -343,39 +367,53 @@ const AdminSidebar = ({
                         exit={{ opacity: 0, height: 0 }}
                         className="ml-8 mt-2 space-y-1 border-l-2 border-slate-100 pl-4"
                       >
-                        {item.children.map((child) => (
-                          <Link
-                            key={child.path}
-                            to={child.path}
-                            onClick={handleLinkClick}
-                            className={`block p-2 rounded-lg transition-all duration-200 group ${
-                              isActiveItem(child.path)
-                                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
-                                : "text-slate-500 hover:text-blue-600 hover:bg-blue-50/70"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div
-                                className={`text-sm font-medium ${
-                                  isActiveItem(child.path)
-                                    ? "text-white"
-                                    : "text-slate-700 group-hover:text-blue-700"
-                                }`}
-                              >
-                                {child.title}
+                        {item.children.map((child) => {
+                          const ChildIcon = child.icon;
+                          return (
+                            <Link
+                              key={child.path}
+                              to={child.path}
+                              onClick={handleLinkClick}
+                              className={`block p-3 rounded-lg transition-all duration-200 group ${
+                                isActiveItem(child.path)
+                                  ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md"
+                                  : "text-slate-500 hover:text-blue-600 hover:bg-blue-50/70"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  {ChildIcon && (
+                                    <ChildIcon
+                                      className={`w-4 h-4 ${
+                                        isActiveItem(child.path)
+                                          ? "text-white"
+                                          : "text-slate-400 group-hover:text-blue-500"
+                                      }`}
+                                    />
+                                  )}
+                                  <div
+                                    className={`text-sm font-medium ${
+                                      isActiveItem(child.path)
+                                        ? "text-white"
+                                        : "text-slate-700 group-hover:text-blue-700"
+                                    }`}
+                                  >
+                                    {child.title}
+                                  </div>
+                                </div>
+                                <div
+                                  className={`text-xs ${
+                                    isActiveItem(child.path)
+                                      ? "text-blue-100"
+                                      : "text-slate-400 group-hover:text-blue-500"
+                                  }`}
+                                >
+                                  {child.description}
+                                </div>
                               </div>
-                              <div
-                                className={`text-xs ${
-                                  isActiveItem(child.path)
-                                    ? "text-blue-100"
-                                    : "text-slate-400 group-hover:text-blue-500"
-                                }`}
-                              >
-                                {child.description}
-                              </div>
-                            </div>
-                          </Link>
-                        ))}
+                            </Link>
+                          );
+                        })}
                       </motion.div>
                     )}
                 </AnimatePresence>

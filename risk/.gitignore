@@ -12,6 +12,8 @@
 /.phpunit.cache
 /.vscode
 /.qodo
+.claude.json
+/.claude
 /docs
 /deployment
 /db

@@ -71,6 +71,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | User Display Timezone
+    |--------------------------------------------------------------------------
+    |
+    | This is the timezone used for displaying dates to users in the frontend.
+    | While the database stores dates in UTC, this timezone will be used when
+    | formatting dates for display. Default is Asia/Manila (Philippine Time).
+    |
+    */
+
+    'user_timezone' => env('USER_TIMEZONE', 'Asia/Manila'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |
@@ -124,5 +137,29 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Maintenance Mode Allowed IPs
+    |--------------------------------------------------------------------------
+    |
+    | These IP addresses will be allowed to access the application even when
+    | it is in maintenance mode. This is useful for developers and admins.
+    |
+    */
+
+    'maintenance_allowed_ips' => array_filter(explode(',', env('MAINTENANCE_ALLOWED_IPS', ''))),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Maintenance Mode Secret
+    |--------------------------------------------------------------------------
+    |
+    | This secret can be used to bypass maintenance mode by appending
+    | ?secret=your-secret to the URL.
+    |
+    */
+
+    'maintenance_secret' => env('MAINTENANCE_SECRET'),
 
 ];

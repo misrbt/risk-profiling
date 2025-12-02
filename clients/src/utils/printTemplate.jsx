@@ -38,7 +38,7 @@ export const generatePrintHtml = (customer, logoSrc) => {
   <title>Client Risk Profile</title>
   <style>
     .logo { width: 80px; height: auto; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto; }
-    @page { size: A4; margin: 1cm; }
+    @page { size: letter; margin: 1cm; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 1rem; color: #333; line-height: 1.6; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: white; }
     .container { width: 90%; max-width: 800px; margin: 0 auto; padding: 1.5rem; border: 2px solid #333; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); background: white; }
     header h5 { text-align: center; margin-bottom: 2rem; font-weight: normal; font-size: 20px; }
@@ -85,8 +85,12 @@ export const generatePrintHtml = (customer, logoSrc) => {
     </header>
 
     <div>
-      <h4 style="text-align: left; padding:0;margin-bottom:3px; line-height: 1.6;">Name: ${customer.name}</h4>
-      <h5 style="text-align: left; padding:0; margin:0; font-size:16px">Date Assessed: ${customer.created_at ?? ""}</h5>
+      <h4 style="text-align: left; padding:0;margin-bottom:3px; line-height: 1.6;">Name: ${
+        customer.name
+      }</h4>
+      <h5 style="text-align: left; padding:0; margin:0; font-size:16px">Date Assessed: ${
+        customer.created_at ?? ""
+      }</h5>
     </div>
 
     <table>
@@ -97,10 +101,14 @@ export const generatePrintHtml = (customer, logoSrc) => {
         ${bodyRows}
       </tbody>
       <tfoot>
-        <tr><td colspan="2">Total Score</td><td style="text-align:center;">${customer.totalScore}</td></tr>
+        <tr><td colspan="2">Total Score</td><td style="text-align:center;">${
+          customer.totalScore
+        }</td></tr>
         <tr style="font-size:10px;">
           <td colspan="2">Risk Level</td>
-          <td class="${riskClass(customer.riskLevel)}">${customer.riskLevel}</td>
+          <td class="${riskClass(customer.riskLevel)}">${
+    customer.riskLevel
+  }</td>
         </tr>
       </tfoot>
     </table>

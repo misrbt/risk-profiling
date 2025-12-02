@@ -90,7 +90,7 @@ const RoleManagement = () => {
 
     if (result.isConfirmed) {
       try {
-        await api.delete(`/roles/${roleId}`);
+        await api.delete(`${API_ENDPOINTS.ROLES}/${roleId}`);
         await fetchRoles();
         Swal.fire("Deleted!", "Role has been deleted successfully.", "success");
       } catch (error) {
@@ -127,7 +127,7 @@ const RoleManagement = () => {
       };
 
       if (editingRole) {
-        await api.put(`/roles/${editingRole.id}`, roleData);
+        await api.put(`${API_ENDPOINTS.ROLES}/${editingRole.id}`, roleData);
         Swal.fire({
           title: 'Success!',
           text: 'Role updated successfully.',
@@ -139,7 +139,7 @@ const RoleManagement = () => {
           },
         });
       } else {
-        await api.post("/roles", roleData);
+        await api.post(API_ENDPOINTS.ROLES, roleData);
         Swal.fire({
           title: 'Success!',
           text: 'Role created successfully.',

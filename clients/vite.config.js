@@ -43,15 +43,9 @@ export default defineConfig({
     // Remove any node.js globals that might cause issues
     global: 'globalThis',
   },
-  // server : {
-  //   host: '192.168.1.13',
-  //   port: 5173,
-  //   proxy: {
-  //     '/api': {
-  //       target: 'http://192.168.0.28:8002', // Laravel URL
-  //       changeOrigin: true,
-  //       secure: false,
-  //     },
-  //   },
-  // }
+  server: {
+    host: '0.0.0.0', // Listen on all network interfaces
+    port: 5173,
+    strictPort: false, // Allow port change if 5173 is in use
+  }
 })

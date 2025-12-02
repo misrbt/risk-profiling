@@ -20,19 +20,21 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        env('FRONTEND_URL', 'http://localhost:5173'),
-        'http://risk-profiling.local',
-        'http://192.168.0.28:5173',
-        'http://192.168.0.28',
+        env('FRONTEND_URL', 'https://risk-profiling.rbtbank.com'),
+        'https://risk-profiling.rbtbank.com',
+        'https://192.168.0.213',
+        'http://risk-profiling.rbtbank.com',
+        'http://192.168.0.213',
+        'http://192.168.0.213:5173',
         'http://localhost:5173',
-        'http://localhost:5174',
-        'http://localhost:5175',
     ],
 
     'allowed_origins_patterns' => [
+        'https://192.168.*',
+        'https://risk-profiling.rbtbank.com*',
         'http://192.168.*',
         'http://localhost:*',
-        'http://risk-profiling.local*',
+        'http://risk-profiling.rbtbank.com*',
     ],
 
     'allowed_headers' => ['*'],

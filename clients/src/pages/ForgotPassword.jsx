@@ -18,7 +18,7 @@ const ForgotPassword = () => {
     try {
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_URL || "http://risk-profiling.local/api"
+          import.meta.env.VITE_API_URL || "http://risk-profiling.rbtbank.com/api"
         }/auth/forgot-password`,
         {
           method: "POST",

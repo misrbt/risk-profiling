@@ -31,8 +31,8 @@ export const API_ENDPOINTS = {
   USER_ACTIVITIES_STATS: 'admin/user-activities/stats',
 
   // Audit Logs endpoints (Admin only)
-  AUDIT_LOGS: 'admin/audit-logs',
-  AUDIT_LOGS_STATS: 'admin/audit-logs/stats',
+  ADMIN_AUDIT_LOGS: 'admin/audit-logs',
+  ADMIN_AUDIT_LOGS_STATS: 'admin/audit-logs/stats',
   
   // Customer endpoints - Role-specific with separate permissions
   CUSTOMERS: 'admin/customers', // Admin customer access (view + edit)
@@ -57,6 +57,18 @@ export const API_ENDPOINTS = {
   // Compliance-specific endpoints (view-only)
   COMPLIANCE_CUSTOMERS: 'compliance/customers', // Compliance customer viewing (read-only)
 
+  // Audit-specific endpoints (read-only)
+  AUDIT_DASHBOARD: 'audit/dashboard',
+  AUDIT_DASHBOARD_ANALYTICS: 'audit/dashboard/analytics',
+  AUDIT_DASHBOARD_BRANCH_STATS: 'audit/dashboard/branch-stats',
+  AUDIT_CUSTOMERS: 'audit/customers',
+  AUDIT_CUSTOMERS_LIST: 'audit/customers-list',
+  AUDIT_USER_ACTIVITIES: 'audit/user-activities',
+  AUDIT_USER_ACTIVITIES_STATS: 'audit/user-activities/stats',
+  AUDIT_LOGS: 'audit/audit-logs',
+  AUDIT_LOGS_STATS: 'audit/audit-logs/stats',
+  AUDIT_ACTIVE_USERS: 'audit/auth/active-users',
+
   // System Settings endpoints (Admin only)
   SYSTEM_SETTINGS: 'admin/system-settings',
   SYSTEM_SETTINGS_GROUP: 'admin/system-settings/group',
@@ -77,7 +89,10 @@ export const API_ENDPOINTS = {
   RISK_CRITERIA: 'compliance/risk-settings/criteria',
   RISK_OPTIONS: 'compliance/risk-settings/options',
   SELECTION_CONFIG: 'compliance/risk-settings/selection-config',
-  
+
+  // Risk Settings endpoints (User only)
+  USER_SELECTION_CONFIG: 'user/risk-settings/selection-config',
+
   // Branch endpoints
   BRANCHES_DROPDOWN: 'branches/dropdown',
 
@@ -87,6 +102,7 @@ export const API_ENDPOINTS = {
   USER_EDIT_REQUESTS: 'user/edit-requests/my-requests',
   MANAGER_PENDING_REQUESTS: 'manager/edit-requests/pending',
   MANAGER_UPDATE_REQUEST_STATUS: (requestId) => `manager/edit-requests/${requestId}/status`,
+
 };
 
 // Application Constants - Use environment variables with fallbacks

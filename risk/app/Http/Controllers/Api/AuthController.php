@@ -84,11 +84,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if ($user->status !== 'active') {
-            throw ValidationException::withMessages([
-                'email' => 'Account is inactive. Please contact administrator.',
-            ]);
-        }
+        // Status check is now handled in LoginRequest::authenticate()
 
         $user->tokens()->delete();
 
@@ -132,6 +128,10 @@ class AuthController extends Controller
                 'token' => $token,
                 'expires_at' => $expiresAt ? $expiresAt->toISOString() : null,
                 'password_change_required' => $user->password_change_required ?? false,
+                'password_expired' => $user->isPasswordExpired(),
+                'days_until_password_expires' => $user->daysUntilPasswordExpires(),
+                'two_factor_required' => $this->isTwoFactorRequired($user),
+                'two_factor_enabled' => $user->two_factor_enabled ?? false,
             ],
         ]);
     }
@@ -552,5 +552,48 @@ class AuthController extends Controller
                 default => 'Unable to reset password'
             },
         ], 400);
+    }
+
+    /**
+     * Check if two-factor authentication is required for the user
+     */
+    private function isTwoFactorRequired($user): bool
+    {
+        try {
+            // Admin is never required to use 2FA
+            if ($user->hasRole('admin')) {
+                return false;
+            }
+
+            // Check if system_settings table exists
+            if (!\Schema::hasTable('system_settings')) {
+                return false;
+            }
+
+            // Check if 2FA is enabled globally
+            $twoFactorEnabled = \DB::table('system_settings')
+                ->where('group', 'security')
+                ->where('key', 'two_factor_enabled')
+                ->value('value');
+
+            if ($twoFactorEnabled !== 'true' && $twoFactorEnabled !== true) {
+                return false;
+            }
+
+            // Get required roles
+            $requiredRolesJson = \DB::table('system_settings')
+                ->where('group', 'security')
+                ->where('key', 'two_factor_roles')
+                ->value('value');
+
+            $requiredRoles = $requiredRolesJson ? json_decode($requiredRolesJson, true) : [];
+
+            // Check if user has any required role
+            $userRoles = $user->roles->pluck('name')->toArray();
+            return !empty(array_intersect($userRoles, $requiredRoles));
+        } catch (\Exception $e) {
+            \Log::error('2FA Role Check Error: ' . $e->getMessage());
+            return false;
+        }
     }
 }

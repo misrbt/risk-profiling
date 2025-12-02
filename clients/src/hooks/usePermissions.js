@@ -143,12 +143,23 @@ export const usePermissions = () => {
   }, [userRoles]);
 
   /**
+   * Check if user is audit
+   */
+  const isAudit = useMemo(() => {
+    return userRoles.includes('audit');
+  }, [userRoles]);
+
+  /**
    * Get appropriate dashboard route for user
    */
   const getDashboardRoute = () => {
     if (isAdmin) return '/admin/dashboard';
+    if (isAudit) return '/audit/dashboard';
     if (isCompliance || isManager) return '/dashboard';
-    return '/risk-form';
+    // Regular users should go to risk form to create assessments
+    if (isRegularUser) return '/risk-form';
+    // Default fallback
+    return '/dashboard';
   };
 
   /**
@@ -260,6 +271,7 @@ export const usePermissions = () => {
     isCompliance,
     isManager,
     isRegularUser,
+    isAudit,
     getDashboardRoute,
 
     // Semantic permission helpers

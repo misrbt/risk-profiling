@@ -17,13 +17,19 @@ import {
 } from "../utils/sweetAlertConfig";
 import { useAuth } from "../contexts/AuthContext";
 import { riskSettingsService } from "../services/riskSettingsService";
+import Swal from "sweetalert2";
+import { generatePrintContent } from "../components/customers/PrintTemplate";
+import { useSystemSettings } from "../contexts/SystemSettingsContext";
+import { useNavigate } from "react-router-dom";
 
 export default function RiskAssessmentPage() {
   const { user, isRegularUser, isComplianceOfficer, hasRole } = useAuth();
+  const { systemLogo } = useSystemSettings();
+  const navigate = useNavigate();
 
   // Helper function to get role-based endpoints
   const getAssessmentEndpoints = () => {
-    if (hasRole('admin')) {
+    if (hasRole("admin")) {
       return {
         CRITERIA: API_ENDPOINTS.ADMIN_CRITERIA,
         CREATE_CUSTOMER: API_ENDPOINTS.ADMIN_CREATE_CUSTOMER,
@@ -65,7 +71,7 @@ export default function RiskAssessmentPage() {
         },
       }),
       // Fetch selection configuration using service
-      riskSettingsService.selectionConfig.getAll()
+      riskSettingsService.selectionConfig.getAll(),
     ])
       .then(([criteriaRes, configRes]) => {
         setCriteria(criteriaRes.data);
@@ -126,7 +132,7 @@ export default function RiskAssessmentPage() {
   }, [user, selectedBranch]);
 
   const handleSelect = (criteriaId, optionId) => {
-    const isMultiple = selectionConfig[criteriaId] === 'multiple';
+    const isMultiple = selectionConfig[criteriaId] === "multiple";
 
     if (isMultiple) {
       // Handle multiple selection (checkboxes)
@@ -136,16 +142,18 @@ export default function RiskAssessmentPage() {
 
         if (isSelected) {
           // Remove option
-          const newSelections = currentSelections.filter(id => id !== optionId);
+          const newSelections = currentSelections.filter(
+            (id) => id !== optionId
+          );
           return {
             ...prev,
-            [criteriaId]: newSelections.length > 0 ? newSelections : undefined
+            [criteriaId]: newSelections.length > 0 ? newSelections : undefined,
           };
         } else {
           // Add option
           return {
             ...prev,
-            [criteriaId]: [...currentSelections, optionId]
+            [criteriaId]: [...currentSelections, optionId],
           };
         }
       });
@@ -169,8 +177,8 @@ export default function RiskAssessmentPage() {
     if (result.isConfirmed) {
       setIsLoading(true);
       // Flatten responses for multiple selection criteria
-      const allSelectedOptionIds = Object.values(responses).flatMap(response =>
-        Array.isArray(response) ? response : [response]
+      const allSelectedOptionIds = Object.values(responses).flatMap(
+        (response) => (Array.isArray(response) ? response : [response])
       );
 
       try {
@@ -205,20 +213,57 @@ export default function RiskAssessmentPage() {
         const resultData = {
           riskLevel: response.data.risk_level,
           totalScore: response.data.total_score,
+          customerId: response.data.customer?.id,
         };
 
         setResult(resultData);
         setShowReviewModal(false);
-
-        // Success SweetAlert with detailed information
-        await successAlert(
-          "Assessment Complete!",
-          `Customer: ${name}\nRisk Level: ${resultData.riskLevel}\nTotal Score: ${resultData.totalScore}`,
-          "View Full Results"
-        );
-
-        setShowModal(true);
         setIsLoading(false);
+
+        // Show final success alert with two buttons
+        const finalResult = await Swal.fire({
+          title: "Assessment Complete!",
+          html: `
+            <div style="text-align: center; padding: 20px;">
+              <p style="font-size: 18px; margin-bottom: 15px;"><strong>Customer:</strong> ${name}</p>
+              <p style="font-size: 18px; margin-bottom: 15px;"><strong>Risk Level:</strong> <span style="color: ${
+                resultData.riskLevel === "HIGH RISK"
+                  ? "#dc2626"
+                  : resultData.riskLevel === "MODERATE RISK"
+                  ? "#ca8a04"
+                  : "#16a34a"
+              }; font-weight: bold;">${resultData.riskLevel}</span></p>
+              <p style="font-size: 18px; margin-bottom: 15px;"><strong>Total Score:</strong> ${resultData.totalScore}</p>
+            </div>
+          `,
+          icon: "success",
+          showCancelButton: true,
+          showDenyButton: true,
+          confirmButtonText: "Start New Assessment",
+          denyButtonText: "Print Assessment",
+          cancelButtonText: "Close",
+          confirmButtonColor: "#3b82f6",
+          denyButtonColor: "#10b981",
+          cancelButtonColor: "#64748b",
+          customClass: {
+            popup: "rounded-2xl shadow-2xl",
+            confirmButton: "rounded-lg px-6 py-3 font-medium",
+            denyButton: "rounded-lg px-6 py-3 font-medium",
+            cancelButton: "rounded-lg px-6 py-3 font-medium",
+          },
+        });
+
+        // Handle user action
+        if (finalResult.isConfirmed) {
+          // Start new assessment
+          handleResetAssessment();
+        } else if (finalResult.isDenied) {
+          // Print assessment - pass the customer ID and data
+          await handlePrintAssessment(response.data.id, name, resultData);
+        } else if (finalResult.dismiss === Swal.DismissReason.cancel) {
+          // Close button clicked - navigate to customer list
+          handleNavigateToCustomerList();
+        }
       } catch (err) {
         setIsLoading(false);
 
@@ -249,6 +294,152 @@ export default function RiskAssessmentPage() {
       setError("");
       setCurrentStep(0);
       setCompletedStepsCount(0);
+    }
+  };
+
+  // Reset assessment to start new one
+  const handleResetAssessment = () => {
+    setName("");
+    setResponses({});
+    setResult(null);
+    setError("");
+    setCurrentStep(0);
+    setCompletedStepsCount(0);
+    setShowModal(false);
+    setShowReviewModal(false);
+    setSelectedBranch("");
+  };
+
+  // Navigate to customer list based on role
+  const handleNavigateToCustomerList = () => {
+    if (hasRole("admin")) {
+      navigate("/admin/customers");
+    } else if (hasRole("manager")) {
+      navigate("/manager/customers");
+    } else if (hasRole("compliance")) {
+      navigate("/compliance/customers");
+    } else if (hasRole("audit")) {
+      navigate("/audit/customers");
+    } else {
+      navigate("/customers");
+    }
+  };
+
+  // Print assessment
+  const handlePrintAssessment = async (customerId, customerName, resultData) => {
+    if (!customerId) {
+      await errorAlert("Print Error", "Customer ID not available for printing.", "OK");
+      return;
+    }
+
+    try {
+      // Show loading
+      Swal.fire({
+        title: "Preparing Print...",
+        text: "Please wait while we prepare your assessment for printing.",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      // Fetch full customer details with selections
+      const token = localStorage.getItem("authToken");
+
+      // Determine the correct endpoint based on role
+      let customerEndpoint;
+      if (hasRole("admin")) {
+        customerEndpoint = `admin/customers/${customerId}`;
+      } else if (hasRole("manager")) {
+        customerEndpoint = `manager/customers/${customerId}`;
+      } else if (hasRole("compliance")) {
+        customerEndpoint = `compliance/customers/${customerId}`;
+      } else {
+        customerEndpoint = `user/customers/${customerId}`;
+      }
+
+      const response = await axios.get(customerEndpoint, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      });
+
+      Swal.close();
+
+      // Extract data from response (backend returns { success: true, data: {...} })
+      const data = response.data.success ? response.data.data : response.data;
+
+      // Prepare customer data for printing
+      const customerData = {
+        id: data.id,
+        name: data.name,
+        totalScore: data.totalScore || data.total_score,
+        riskLevel: data.riskLevel || data.risk_level,
+        created_at: data.created_at,
+        selections: data.selections || [],
+        createdByName: user?.full_name || user?.name || "Unknown",
+      };
+
+      const currentDate = new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+
+      const printWindow = window.open("", "_blank");
+      const printContent = generatePrintContent(customerData, currentDate, systemLogo);
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
+
+      // Show the success alert again after printing
+      const secondResult = await Swal.fire({
+        title: "Assessment Complete!",
+        html: `
+          <div style="text-align: center; padding: 20px;">
+            <p style="font-size: 18px; margin-bottom: 15px;"><strong>Customer:</strong> ${customerName}</p>
+            <p style="font-size: 18px; margin-bottom: 15px;"><strong>Risk Level:</strong> <span style="color: ${
+              resultData.riskLevel === "HIGH RISK"
+                ? "#dc2626"
+                : resultData.riskLevel === "MODERATE RISK"
+                ? "#ca8a04"
+                : "#16a34a"
+            }; font-weight: bold;">${resultData.riskLevel}</span></p>
+            <p style="font-size: 18px; margin-bottom: 15px;"><strong>Total Score:</strong> ${resultData.totalScore}</p>
+          </div>
+        `,
+        icon: "success",
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: "Start New Assessment",
+        denyButtonText: "Print Assessment",
+        cancelButtonText: "Close",
+        confirmButtonColor: "#3b82f6",
+        denyButtonColor: "#10b981",
+        cancelButtonColor: "#64748b",
+        customClass: {
+          popup: "rounded-2xl shadow-2xl",
+          confirmButton: "rounded-lg px-6 py-3 font-medium",
+          denyButton: "rounded-lg px-6 py-3 font-medium",
+          cancelButton: "rounded-lg px-6 py-3 font-medium",
+        },
+      });
+
+      // Handle the second result
+      if (secondResult.isConfirmed) {
+        handleResetAssessment();
+      } else if (secondResult.isDenied) {
+        await handlePrintAssessment(customerId, customerName, resultData);
+      } else if (secondResult.dismiss === Swal.DismissReason.cancel) {
+        handleNavigateToCustomerList();
+      }
+    } catch (err) {
+      Swal.close();
+      console.error("Print error:", err);
+      await errorAlert("Print Error", "Failed to fetch customer details for printing. Please try again.", "OK");
     }
   };
 
@@ -337,9 +528,13 @@ export default function RiskAssessmentPage() {
 
     const currentCriteria = criteria[currentStep - 1];
     const currentResponse = responses[currentCriteria.id];
-    const isMultiple = selectionConfig[currentCriteria.id] === 'multiple';
+    const isMultiple = selectionConfig[currentCriteria.id] === "multiple";
 
-    if (!currentResponse || (isMultiple && (!Array.isArray(currentResponse) || currentResponse.length === 0))) {
+    if (
+      !currentResponse ||
+      (isMultiple &&
+        (!Array.isArray(currentResponse) || currentResponse.length === 0))
+    ) {
       setError("Please select at least one option before proceeding.");
       return;
     }
@@ -463,7 +658,7 @@ export default function RiskAssessmentPage() {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Enter customer name"
+                      placeholder="ex. Juan S. Dela cruz"
                       className={`w-full max-w-full px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-base md:text-lg rounded-lg sm:rounded-xl border-2 transition-all duration-200 focus:outline-none focus:ring-4 bg-white/90 backdrop-blur-sm text-slate-800 placeholder-slate-500 ${
                         error
                           ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
@@ -667,7 +862,8 @@ export default function RiskAssessmentPage() {
                     {criteria[currentStep - 1]?.category}
                   </h2>
                   <p className="text-white/80 text-sm sm:text-base text-center">
-                    {selectionConfig[criteria[currentStep - 1]?.id] === 'multiple'
+                    {selectionConfig[criteria[currentStep - 1]?.id] ===
+                    "multiple"
                       ? "Please select all applicable options"
                       : "Please select the most appropriate option"}
                   </p>
@@ -700,10 +896,12 @@ export default function RiskAssessmentPage() {
                   {(criteria[currentStep - 1]?.options ?? []).map(
                     (option, index) => {
                       const currentCriteria = criteria[currentStep - 1];
-                      const isMultiple = selectionConfig[currentCriteria.id] === 'multiple';
+                      const isMultiple =
+                        selectionConfig[currentCriteria.id] === "multiple";
                       const currentResponse = responses[currentCriteria.id];
                       const isSelected = isMultiple
-                        ? Array.isArray(currentResponse) && currentResponse.includes(option.id)
+                        ? Array.isArray(currentResponse) &&
+                          currentResponse.includes(option.id)
                         : currentResponse === option.id;
                       const optionsCount = (
                         criteria[currentStep - 1]?.options ?? []
@@ -757,13 +955,22 @@ export default function RiskAssessmentPage() {
                               </svg>
                             </motion.div>
                           )}
-                          <span
-                            className={`text-sm sm:text-base md:text-lg font-medium break-words word-wrap text-center flex items-center justify-center h-full w-full px-2 py-1 whitespace-normal leading-tight ${
-                              isSelected ? "text-green-300" : "text-white"
-                            }`}
-                          >
-                            {option.label}
-                          </span>
+                          <div className="flex flex-col items-center justify-center h-full w-full">
+                            <span
+                              className={`text-sm sm:text-base md:text-lg font-medium break-words word-wrap text-center px-2 py-1 whitespace-normal leading-tight ${
+                                isSelected ? "text-green-300" : "text-white"
+                              }`}
+                            >
+                              {option.label}
+                            </span>
+                            <span
+                              className={`text-xs sm:text-sm font-semibold mt-1 ${
+                                isSelected ? "text-green-200" : "text-white/70"
+                              }`}
+                            >
+                              {option.points} {option.points === 0 || option.points === 1 ? 'point' : 'points'}
+                            </span>
+                          </div>
                         </motion.div>
                       );
                     }
@@ -883,16 +1090,22 @@ export default function RiskAssessmentPage() {
 
                   <div className="space-y-4">
                     {criteria.map((c) => {
-                      const isMultiple = selectionConfig[c.id] === 'multiple';
+                      const isMultiple = selectionConfig[c.id] === "multiple";
                       const currentResponse = responses[c.id];
 
                       let displayText = "Not answered";
                       if (currentResponse) {
                         if (isMultiple && Array.isArray(currentResponse)) {
-                          const selectedOptions = c.options.filter(o => currentResponse.includes(o.id));
-                          displayText = selectedOptions.map(o => o.label).join(", ");
+                          const selectedOptions = c.options.filter((o) =>
+                            currentResponse.includes(o.id)
+                          );
+                          displayText = selectedOptions
+                            .map((o) => o.label)
+                            .join(", ");
                         } else if (!isMultiple) {
-                          const selectedOption = c.options.find(o => o.id === currentResponse);
+                          const selectedOption = c.options.find(
+                            (o) => o.id === currentResponse
+                          );
                           displayText = selectedOption?.label || "Not answered";
                         }
                       }
@@ -910,9 +1123,7 @@ export default function RiskAssessmentPage() {
                               </span>
                             )}
                           </h4>
-                          <p className="text-slate-600">
-                            {displayText}
-                          </p>
+                          <p className="text-slate-600">{displayText}</p>
                         </div>
                       );
                     })}
