@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
             // Register authentication API routes for external integration
             Route::middleware('api')
                 ->group(base_path('routes/auth-api.php'));
+
+            // Register external/shared user management API routes
+            Route::middleware('api')
+                ->group(base_path('routes/external-api.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
