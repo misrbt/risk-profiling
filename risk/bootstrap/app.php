@@ -15,10 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             // Register authentication API routes for external integration
             Route::middleware('api')
+                ->prefix('api')
                 ->group(base_path('routes/auth-api.php'));
 
             // Register external/shared user management API routes
             Route::middleware('api')
+                ->prefix('api')
                 ->group(base_path('routes/external-api.php'));
         },
     )
@@ -43,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'status' => \App\Http\Middleware\CheckStatus::class,
             'token.expiration' => \App\Http\Middleware\TokenExpirationMiddleware::class,
             'token.activity' => \App\Http\Middleware\TokenActivityMiddleware::class,
+            'external.api' => \App\Http\Middleware\VerifyExternalApiKey::class,
         ]);
 
         //

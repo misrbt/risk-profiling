@@ -32,7 +32,7 @@ use App\Http\Controllers\Api\External\ExternalUserController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('risk-profiling/v1/users')
-    ->middleware(['auth:sanctum', 'status'])
+    ->middleware(['external.api'])
     ->group(function () {
 
         /**

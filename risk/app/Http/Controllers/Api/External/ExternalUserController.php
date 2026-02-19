@@ -14,10 +14,10 @@ use Illuminate\Support\Facades\Hash;
  * External User Management Controller
  *
  * Provides a shared API for external applications to manage users.
- * Requires authentication via Bearer token (Sanctum) and the `manage-users` permission
- * for all write operations.
+ * Authenticated via the X-Api-Key header (EXTERNAL_API_KEY in .env).
+ * No user login is required.
  *
- * Base URL: /api/v1/users
+ * Base URL: /api/risk-profiling/v1/users
  */
 class ExternalUserController extends Controller
 {
@@ -104,10 +104,6 @@ class ExternalUserController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (! $this->callerCanManageUsers($request)) {
-            return $this->forbidden();
-        }
-
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'middle_initial' => ['nullable', 'string', 'max:1'],
@@ -164,10 +160,6 @@ class ExternalUserController extends Controller
      */
     public function update(Request $request, User $user): JsonResponse
     {
-        if (! $this->callerCanManageUsers($request)) {
-            return $this->forbidden();
-        }
-
         $rules = [
             'first_name' => ['required', 'string', 'max:255'],
             'middle_initial' => ['nullable', 'string', 'max:1'],
@@ -221,10 +213,6 @@ class ExternalUserController extends Controller
      */
     public function updateStatus(Request $request, User $user): JsonResponse
     {
-        if (! $this->callerCanManageUsers($request)) {
-            return $this->forbidden();
-        }
-
         $request->validate([
             'status' => ['required', 'in:active,inactive'],
         ]);
@@ -251,10 +239,6 @@ class ExternalUserController extends Controller
      */
     public function assignRole(Request $request, User $user): JsonResponse
     {
-        if (! $this->callerCanManageUsers($request)) {
-            return $this->forbidden();
-        }
-
         $request->validate([
             'role_id' => ['required', 'exists:roles,id'],
         ]);
@@ -277,10 +261,6 @@ class ExternalUserController extends Controller
      */
     public function removeRole(Request $request, User $user): JsonResponse
     {
-        if (! $this->callerCanManageUsers($request)) {
-            return $this->forbidden();
-        }
-
         $request->validate([
             'role_id' => ['required', 'exists:roles,id'],
         ]);
@@ -303,10 +283,6 @@ class ExternalUserController extends Controller
      */
     public function syncRoles(Request $request, User $user): JsonResponse
     {
-        if (! $this->callerCanManageUsers($request)) {
-            return $this->forbidden();
-        }
-
         $request->validate([
             'role_ids' => ['required', 'array'],
             'role_ids.*' => ['exists:roles,id'],
@@ -329,10 +305,6 @@ class ExternalUserController extends Controller
      */
     public function resetPassword(Request $request, User $user): JsonResponse
     {
-        if (! $this->callerCanManageUsers($request)) {
-            return $this->forbidden();
-        }
-
         $temporaryPassword = $this->generateTemporaryPassword();
 
         $user->update([
@@ -358,17 +330,6 @@ class ExternalUserController extends Controller
      */
     public function destroy(Request $request, User $user): JsonResponse
     {
-        if (! $this->callerCanManageUsers($request)) {
-            return $this->forbidden();
-        }
-
-        if ($user->id === $request->user()->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You cannot delete your own account',
-            ], 422);
-        }
-
         $user->tokens()->delete();
         $user->delete();
 
@@ -376,30 +337,6 @@ class ExternalUserController extends Controller
             'success' => true,
             'message' => 'User deleted successfully',
         ]);
-    }
-
-    /**
-     * Check whether the authenticated caller has the manage-users permission.
-     */
-    private function callerCanManageUsers(Request $request): bool
-    {
-        $user = $request->user();
-
-        return $user && (
-            $user->hasRole('admin') ||
-            $user->hasPermission('manage-users')
-        );
-    }
-
-    /**
-     * Return a standard 403 Forbidden response.
-     */
-    private function forbidden(): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'message' => 'Forbidden. You do not have permission to manage users.',
-        ], 403);
     }
 
     /**
