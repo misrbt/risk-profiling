@@ -20,15 +20,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \App\Http\Middleware\CentralAuth::class,
         ]);
 
         $middleware->api(append: [
             \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
             \App\Http\Middleware\SecurityHeaders::class,
-            \App\Http\Middleware\TokenExpirationMiddleware::class,
-            \App\Http\Middleware\TokenActivityMiddleware::class,
-            \App\Http\Middleware\AuditMiddleware::class,
         ]);
 
         $middleware->alias([
@@ -37,8 +34,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'role.permission' => \App\Http\Middleware\RolePermissionMiddleware::class,
             'status' => \App\Http\Middleware\CheckStatus::class,
-            'token.expiration' => \App\Http\Middleware\TokenExpirationMiddleware::class,
-            'token.activity' => \App\Http\Middleware\TokenActivityMiddleware::class,
         ]);
 
         //

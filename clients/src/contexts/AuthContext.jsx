@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL, API_ENDPOINTS } from '../config/constants';
+import authApi from '../services/authApi';
 import sessionManager from '../services/sessionManager';
 
 const AuthContext = createContext();
@@ -76,40 +77,42 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password, rememberMe = false) => {
     try {
-      const response = await axios.post(API_ENDPOINTS.LOGIN, {
-        email,
+      // Use centralized auth API with system_slug
+      const response = await authApi.post('/auth/login', {
+        login: email,
         password,
-        remember: rememberMe,
+        system_slug: 'risk_profiling',
       });
 
       if (response.data.success) {
-        const { token: authToken, user: userData, password_change_required, password_expired, days_until_password_expires } = response.data.data;
+        const { token: authToken, user: rawUser, access } = response.data.data;
 
-        // Debug logging
-        console.log('AuthContext login - Full response:', response.data);
-        console.log('AuthContext login - User data:', userData);
-        console.log('AuthContext login - User roles:', userData?.roles);
-        console.log('AuthContext login - Password change required:', password_change_required);
-        console.log('AuthContext login - Password expired:', password_expired);
+        // Map centralized response to the format this frontend expects
+        const userData = {
+          ...rawUser,
+          roles: access ? [{
+            id: 0,
+            name: access.role.charAt(0).toUpperCase() + access.role.slice(1),
+            slug: access.role,
+            permissions: (access.permissions || []).map(p => ({ slug: p })),
+          }] : [],
+          permissions: access?.permissions || [],
+        };
 
         // Store in state
         setToken(authToken);
         setUser(userData);
         setIsAuthenticated(true);
-        setPasswordChangeRequired(password_change_required || false);
+        setPasswordChangeRequired(false);
 
-        // Store token in localStorage
+        // Store in localStorage
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('password_expired', password_expired ? 'true' : 'false');
-        localStorage.setItem('days_until_password_expires', days_until_password_expires?.toString() || '');
-
-        console.log('AuthContext login - Stored in localStorage:', JSON.parse(localStorage.getItem('user')));
 
         // Set axios default header
         axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
 
-        // Start session management after successful login
+        // Start session management
         await sessionManager.init({
           isAuthenticated: true,
           logout: logout,
@@ -119,8 +122,8 @@ export const AuthProvider = ({ children }) => {
         return {
           success: true,
           user: userData,
-          password_expired: password_expired || false,
-          days_until_password_expires: days_until_password_expires
+          password_expired: false,
+          days_until_password_expires: null
         };
       } else {
         return { success: false, message: response.data.message };
@@ -164,9 +167,9 @@ export const AuthProvider = ({ children }) => {
       // Stop session tracking
       sessionManager.stopTracking();
 
-      // Call logout endpoint if token exists
+      // Call centralized auth logout endpoint
       if (token) {
-        await axios.post(API_ENDPOINTS.LOGOUT);
+        await authApi.post('/auth/logout');
       }
     } catch (error) {
       console.error('Logout error:', error);
