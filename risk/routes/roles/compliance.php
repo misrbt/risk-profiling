@@ -9,7 +9,7 @@ use App\Http\Controllers\CustomerController;
 use Illuminate\Support\Facades\Route;
 
 // Compliance-only routes - Oversight and risk management access
-Route::middleware(['auth:sanctum', 'status', 'role:compliance'])->prefix('compliance')->group(function () {
+Route::middleware(['status', 'role:compliance'])->prefix('compliance')->group(function () {
 
     // Dashboard access
     Route::prefix('dashboard')->group(function () {

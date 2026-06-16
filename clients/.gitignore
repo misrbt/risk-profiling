@@ -1,11 +1,16 @@
 # ============================================================================
 # ENVIRONMENT & SENSITIVE FILES
 # ============================================================================
-# Environment variables
+# Environment variables - ONLY .env.example should be tracked
 .env
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.test
+.env.testing
 .env.*
 !.env.example
-!.env.testing
 
 # Claude Code configuration
 .claude.json

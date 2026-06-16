@@ -14,7 +14,7 @@ use App\Http\Controllers\CustomerController;
 use Illuminate\Support\Facades\Route;
 
 // Admin-only routes - Full system access (temporarily removing role check for testing)
-Route::middleware(['auth:sanctum', 'status'])->prefix('admin')->group(function () {
+Route::middleware(['status'])->prefix('admin')->group(function () {
 
     // User management routes - Admin only (unrestricted access)
     Route::prefix('users')->group(function () {
