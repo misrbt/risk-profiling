@@ -25,16 +25,10 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->api(prepend: [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-        ]);
 
         $middleware->api(append: [
             \App\Http\Middleware\PreventRequestsDuringMaintenance::class,
             \App\Http\Middleware\SecurityHeaders::class,
-            \App\Http\Middleware\TokenExpirationMiddleware::class,
-            \App\Http\Middleware\TokenActivityMiddleware::class,
-            \App\Http\Middleware\AuditMiddleware::class,
         ]);
 
         $middleware->alias([

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\IssuesAuthSession;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
@@ -12,6 +13,7 @@ use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\UserActivity;
 use App\Rules\StrongPassword;
+use App\Services\TwoFactorPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -21,24 +23,7 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    /**
-     * Get token expiration time from system settings
-     */
-    private function getTokenExpiration()
-    {
-        try {
-            $tokenExpiration = SystemSetting::getValue('token_expiration_minutes', 60);
-
-            // Ensure it's a numeric value
-            $tokenExpiration = (int) $tokenExpiration;
-
-            // If 0, return null for never expire, otherwise return Carbon instance
-            return $tokenExpiration == 0 ? null : now()->addMinutes($tokenExpiration);
-        } catch (\Exception $e) {
-            // Fallback to 60 minutes if setting not available
-            return now()->addMinutes(60);
-        }
-    }
+    use IssuesAuthSession;
 
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -86,53 +71,28 @@ class AuthController extends Controller
 
         // Status check is now handled in LoginRequest::authenticate()
 
-        $user->tokens()->delete();
-
-        // Create token with dynamic expiration from system settings
-        $expiresAt = $this->getTokenExpiration();
-        $tokenResult = $user->createToken('auth-token', ['*'], $expiresAt);
-        $token = $tokenResult->plainTextToken;
-
-        // Log login activity (will automatically skip if user is admin)
-        auth()->login($user); // Temporarily set user for activity logging
-        UserActivity::log(
-            'login',
-            'User logged into the application',
-            null,
-            null,
-            [
-                'login_method' => 'email',
-                'browser' => $request->userAgent(),
-                'ip' => $request->ip(),
-            ]
-        );
-
-        // Log to audit logs
-        AuditLog::log(
-            'login',
-            'auth',
-            $user->id,
-            [],
-            [
-                'login_method' => 'email',
-                'browser' => $request->userAgent(),
+        // If the user already has 2FA enabled, do NOT issue a token yet.
+        // The login is only completed once the code is verified via
+        // TwoFactorAuthController::verify(), which calls issueAuthSession().
+        if ($user->two_factor_enabled) {
+            return response()->json([
                 'success' => true,
-            ]
-        );
+                'message' => 'Two-factor authentication code required',
+                'data' => [
+                    'two_factor_required' => true,
+                    'user_id' => $user->id,
+                ],
+            ]);
+        }
+
+        $data = $this->issueAuthSession($user, $request, 'email');
+        $data['two_factor_required'] = false;
+        $data['two_factor_enabled'] = false;
 
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
-            'data' => [
-                'user' => new UserResource($user->load('roles.permissions')),
-                'token' => $token,
-                'expires_at' => $expiresAt ? $expiresAt->toISOString() : null,
-                'password_change_required' => $user->password_change_required ?? false,
-                'password_expired' => $user->isPasswordExpired(),
-                'days_until_password_expires' => $user->daysUntilPasswordExpires(),
-                'two_factor_required' => $this->isTwoFactorRequired($user),
-                'two_factor_enabled' => $user->two_factor_enabled ?? false,
-            ],
+            'data' => $data,
         ]);
     }
 
@@ -554,46 +514,4 @@ class AuthController extends Controller
         ], 400);
     }
 
-    /**
-     * Check if two-factor authentication is required for the user
-     */
-    private function isTwoFactorRequired($user): bool
-    {
-        try {
-            // Admin is never required to use 2FA
-            if ($user->hasRole('admin')) {
-                return false;
-            }
-
-            // Check if system_settings table exists
-            if (!\Schema::hasTable('system_settings')) {
-                return false;
-            }
-
-            // Check if 2FA is enabled globally
-            $twoFactorEnabled = \DB::table('system_settings')
-                ->where('group', 'security')
-                ->where('key', 'two_factor_enabled')
-                ->value('value');
-
-            if ($twoFactorEnabled !== 'true' && $twoFactorEnabled !== true) {
-                return false;
-            }
-
-            // Get required roles
-            $requiredRolesJson = \DB::table('system_settings')
-                ->where('group', 'security')
-                ->where('key', 'two_factor_roles')
-                ->value('value');
-
-            $requiredRoles = $requiredRolesJson ? json_decode($requiredRolesJson, true) : [];
-
-            // Check if user has any required role
-            $userRoles = $user->roles->pluck('name')->toArray();
-            return !empty(array_intersect($userRoles, $requiredRoles));
-        } catch (\Exception $e) {
-            \Log::error('2FA Role Check Error: ' . $e->getMessage());
-            return false;
-        }
-    }
 }

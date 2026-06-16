@@ -47,7 +47,7 @@ Route::get('/maintenance/status', function () {
 });
 
 // Shared authenticated routes - accessible by all authenticated users
-Route::middleware(['auth:sanctum', 'status'])->group(function () {
+Route::middleware(['status'])->group(function () {
 
     // Broadcasting authentication route
     Broadcast::routes(['middleware' => ['auth:sanctum']]);

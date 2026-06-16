@@ -4,8 +4,8 @@
   "description": "Risk Profiling Application - Full Stack",
   "scripts": {
     "dev": "npx concurrently \"npm run backend\" \"npm run websocket\" \"npm run frontend\"",
-    "backend": "cd risk && php artisan serve --host=0.0.0.0 --port=8000",
-    "websocket": "cd risk && php artisan reverb:start --host=0.0.0.0 --port=8082",
+    "backend": "cd risk && php artisan serve --host=127.0.0.1 --port=8011",
+    "websocket": "cd risk && php artisan reverb:start --host=0.0.0.0 --port=8081",
     "frontend": "cd clients && npm run dev",
     "install:all": "cd risk && composer install && cd ../clients && npm install",
     "build": "cd clients && npm run build"

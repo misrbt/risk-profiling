@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\IssuesAuthSession;
 use App\Http\Controllers\Controller;
+use App\Services\TwoFactorPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use PragmaRX\Google2FA\Google2FA;
@@ -13,6 +15,8 @@ use BaconQrCode\Writer;
 
 class TwoFactorAuthController extends Controller
 {
+    use IssuesAuthSession;
+
     /**
      * Enable 2FA for the authenticated user
      * Generate secret and QR code
@@ -22,12 +26,11 @@ class TwoFactorAuthController extends Controller
         try {
             $user = $request->user();
 
-            // Check if user's role requires 2FA
-            if (!$this->isUserRoleRequired2FA($user)) {
+            if ($user->two_factor_enabled) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Two-factor authentication is not required for your role'
-                ], 403);
+                    'message' => 'Two-factor authentication is already enabled'
+                ], 400);
             }
 
             $google2fa = new Google2FA();
@@ -152,7 +155,7 @@ class TwoFactorAuthController extends Controller
 
             // Check if it's a recovery code
             if (strlen($request->code) > 6) {
-                return $this->verifyRecoveryCode($user, $request->code);
+                return $this->verifyRecoveryCode($user, $request->code, $request);
             }
 
             // Verify the TOTP code
@@ -165,9 +168,14 @@ class TwoFactorAuthController extends Controller
                 ], 400);
             }
 
+            $data = $this->issueAuthSession($user, $request, 'two_factor');
+            $data['two_factor_required'] = false;
+            $data['two_factor_enabled'] = true;
+
             return response()->json([
                 'success' => true,
-                'message' => 'Code verified successfully'
+                'message' => 'Login successful',
+                'data' => $data,
             ]);
         } catch (\Exception $e) {
             \Log::error('2FA Verify Error: ' . $e->getMessage());
@@ -230,7 +238,7 @@ class TwoFactorAuthController extends Controller
             'data' => [
                 'enabled' => $user->two_factor_enabled,
                 'confirmed_at' => $user->two_factor_confirmed_at,
-                'is_required' => $this->isUserRoleRequired2FA($user),
+                'is_required' => TwoFactorPolicy::isRequiredForUser($user),
             ]
         ]);
     }
@@ -296,9 +304,9 @@ class TwoFactorAuthController extends Controller
     }
 
     /**
-     * Verify recovery code
+     * Verify recovery code and complete the pending login
      */
-    private function verifyRecoveryCode($user, $code)
+    private function verifyRecoveryCode($user, $code, Request $request)
     {
         try {
             $recoveryCodes = json_decode(decrypt($user->two_factor_recovery_codes), true);
@@ -315,12 +323,15 @@ class TwoFactorAuthController extends Controller
             $user->two_factor_recovery_codes = encrypt(json_encode(array_values($recoveryCodes)));
             $user->save();
 
+            $data = $this->issueAuthSession($user, $request, 'two_factor_recovery_code');
+            $data['two_factor_required'] = false;
+            $data['two_factor_enabled'] = true;
+            $data['remaining_codes'] = count($recoveryCodes);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Recovery code verified successfully',
-                'data' => [
-                    'remaining_codes' => count($recoveryCodes)
-                ]
+                'message' => 'Login successful',
+                'data' => $data,
             ]);
         } catch (\Exception $e) {
             \Log::error('2FA Verify Recovery Code Error: ' . $e->getMessage());
@@ -328,49 +339,6 @@ class TwoFactorAuthController extends Controller
                 'success' => false,
                 'message' => 'Failed to verify recovery code'
             ], 500);
-        }
-    }
-
-    /**
-     * Check if user's role requires 2FA
-     */
-    private function isUserRoleRequired2FA($user)
-    {
-        try {
-            // Admin is never required to use 2FA
-            if ($user->hasRole('admin')) {
-                return false;
-            }
-
-            // Check if system_settings table exists
-            if (!\Schema::hasTable('system_settings')) {
-                return false;
-            }
-
-            // Check if 2FA is enabled globally
-            $twoFactorEnabled = \DB::table('system_settings')
-                ->where('group', 'security')
-                ->where('key', 'two_factor_enabled')
-                ->value('value');
-
-            if ($twoFactorEnabled !== 'true' && $twoFactorEnabled !== true) {
-                return false;
-            }
-
-            // Get required roles
-            $requiredRolesJson = \DB::table('system_settings')
-                ->where('group', 'security')
-                ->where('key', 'two_factor_roles')
-                ->value('value');
-
-            $requiredRoles = $requiredRolesJson ? json_decode($requiredRolesJson, true) : [];
-
-            // Check if user has any required role
-            $userRoles = $user->roles->pluck('name')->toArray();
-            return !empty(array_intersect($userRoles, $requiredRoles));
-        } catch (\Exception $e) {
-            \Log::error('2FA Role Check Error: ' . $e->getMessage());
-            return false;
         }
     }
 }

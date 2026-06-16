@@ -12,6 +12,7 @@ import { SystemSettingsProvider } from "./contexts/SystemSettingsContext";
 import { ProtectedRoute } from "./components/auth";
 import RoleBasedRedirect from "./components/auth/RoleBasedRedirect";
 import ForcePasswordChangeWrapper from "./components/auth/ForcePasswordChangeWrapper";
+import ForceTwoFactorSetupWrapper from "./components/auth/ForceTwoFactorSetupWrapper";
 import PasswordExpiredWrapper from "./components/auth/PasswordExpiredWrapper";
 import { configureAxios } from "./services/axiosInterceptor";
 import { LoadingSpinner } from "./components/ui";
@@ -31,6 +32,8 @@ const CustomerListPage = lazy(() =>
   import("./pages/customers/CustomerListPage")
 );
 const Login = lazy(() => import("./pages/Login"));
+const TwoFactorVerify = lazy(() => import("./pages/TwoFactorVerify"));
+const TwoFactorSetup = lazy(() => import("./pages/TwoFactorSetup"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -85,6 +88,7 @@ function AreviREllocin() {
           <Router>
             <PasswordExpiredWrapper>
               <ForcePasswordChangeWrapper>
+                <ForceTwoFactorSetupWrapper>
                 <Suspense fallback={<LoadingSpinner />}>
                   <StatusNotifications />
                   <PasswordExpiryNotification />
@@ -92,6 +96,8 @@ function AreviREllocin() {
                 {/* Auth routes */}
                 <Route path="/" element={<Login />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/two-factor-verify" element={<TwoFactorVerify />} />
+                <Route path="/two-factor-setup" element={<TwoFactorSetup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
 
@@ -272,6 +278,7 @@ function AreviREllocin() {
                 />
                 </Routes>
               </Suspense>
+                </ForceTwoFactorSetupWrapper>
             </ForcePasswordChangeWrapper>
           </PasswordExpiredWrapper>
         </Router>

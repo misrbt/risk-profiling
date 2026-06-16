@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordChangeRequired, setPasswordChangeRequired] = useState(false);
+  const [twoFactorSetupRequired, setTwoFactorSetupRequired] = useState(false);
 
   // Initialize auth state from localStorage (REVERTED TO SIMPLE APPROACH)
   useEffect(() => {
@@ -74,57 +75,60 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  // Finalize a session once we have a real token + user (either from a
+  // direct password login or after a two-factor challenge is verified).
+  const completeSession = async (data) => {
+    const { token: authToken, user: userData, password_change_required, two_factor_setup_required } = data;
+
+    setToken(authToken);
+    setUser(userData);
+    setIsAuthenticated(true);
+    setPasswordChangeRequired(password_change_required || false);
+    setTwoFactorSetupRequired(two_factor_setup_required || false);
+
+    localStorage.setItem('authToken', authToken);
+    localStorage.setItem('user', JSON.stringify(userData));
+
+    axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+
+    await sessionManager.init({
+      isAuthenticated: true,
+      logout: logout,
+      setUserData: setUserData
+    });
+  };
+
   const login = async (email, password, rememberMe = false) => {
     try {
       const response = await axios.post(API_ENDPOINTS.LOGIN, {
         email,
         password,
-        remember: rememberMe,
+        remember: rememberMe
       });
 
-      if (response.data.success) {
-        const { token: authToken, user: userData, password_change_required, password_expired, days_until_password_expires } = response.data.data;
-
-        // Debug logging
-        console.log('AuthContext login - Full response:', response.data);
-        console.log('AuthContext login - User data:', userData);
-        console.log('AuthContext login - User roles:', userData?.roles);
-        console.log('AuthContext login - Password change required:', password_change_required);
-        console.log('AuthContext login - Password expired:', password_expired);
-
-        // Store in state
-        setToken(authToken);
-        setUser(userData);
-        setIsAuthenticated(true);
-        setPasswordChangeRequired(password_change_required || false);
-
-        // Store token in localStorage
-        localStorage.setItem('authToken', authToken);
-        localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('password_expired', password_expired ? 'true' : 'false');
-        localStorage.setItem('days_until_password_expires', days_until_password_expires?.toString() || '');
-
-        console.log('AuthContext login - Stored in localStorage:', JSON.parse(localStorage.getItem('user')));
-
-        // Set axios default header
-        axios.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
-
-        // Start session management after successful login
-        await sessionManager.init({
-          isAuthenticated: true,
-          logout: logout,
-          setUserData: setUserData
-        });
-
-        return {
-          success: true,
-          user: userData,
-          password_expired: password_expired || false,
-          days_until_password_expires: days_until_password_expires
-        };
-      } else {
+      if (!response.data.success) {
         return { success: false, message: response.data.message };
       }
+
+      const data = response.data.data;
+
+      // Password was correct, but the account already has 2FA enabled -
+      // no token has been issued yet. The caller must collect a code and
+      // call completeTwoFactorLogin() with the verify response.
+      if (data.two_factor_required) {
+        return { success: true, two_factor_required: true, user_id: data.user_id };
+      }
+
+      const { password_expired, days_until_password_expires, two_factor_setup_required } = data;
+      await completeSession(data);
+
+      return {
+        success: true,
+        user: data.user,
+        password_expired: password_expired || false,
+        days_until_password_expires: days_until_password_expires || null,
+        two_factor_setup_required: two_factor_setup_required || false
+      };
     } catch (error) {
       console.error('Login error:', error);
       return {
@@ -132,6 +136,13 @@ export const AuthProvider = ({ children }) => {
         message: error.response?.data?.message || 'Login failed. Please try again.'
       };
     }
+  };
+
+  // Called after POST /two-factor/verify succeeds during login, with that
+  // response's `data` payload (token, user, etc.) to finish the session.
+  const completeTwoFactorLogin = async (data) => {
+    await completeSession(data);
+    return { success: true, user: data.user };
   };
 
   const register = async (userData) => {
@@ -164,7 +175,6 @@ export const AuthProvider = ({ children }) => {
       // Stop session tracking
       sessionManager.stopTracking();
 
-      // Call logout endpoint if token exists
       if (token) {
         await axios.post(API_ENDPOINTS.LOGOUT);
       }
@@ -303,16 +313,19 @@ export const AuthProvider = ({ children }) => {
     loading,
     isAuthenticated,
     passwordChangeRequired,
-    
+    twoFactorSetupRequired,
+
     // Actions
     login,
+    completeTwoFactorLogin,
     register,
     logout,
     updateProfile,
     refreshUser,
     setUserData,
     setPasswordChangeRequired,
-    
+    setTwoFactorSetupRequired,
+
     // Role/Permission checks
     hasRole,
     hasPermission,

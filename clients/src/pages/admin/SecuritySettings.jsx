@@ -28,9 +28,17 @@ const SecuritySettings = () => {
     password_expiration_months: 3,
     password_expiration_roles: ["Manager", "Audit", "Compliance", "User"],
     two_factor_enabled: false,
-    two_factor_roles: ["Manager", "Audit", "Compliance", "User"],
+    two_factor_roles: ["admin", "manager", "compliance", "audit", "users"],
   });
   const [errors, setErrors] = useState({});
+
+  const twoFactorRoleOptions = [
+    { slug: "admin", label: "Admin" },
+    { slug: "manager", label: "Manager" },
+    { slug: "compliance", label: "Compliance" },
+    { slug: "audit", label: "Audit" },
+    { slug: "users", label: "Users" },
+  ];
 
   const logoutOptions = [
     { value: 0, label: "Never (Disable auto-logout)" },
@@ -117,7 +125,7 @@ const SecuritySettings = () => {
               ? (typeof settingsMap.two_factor_roles.value === 'string'
                   ? JSON.parse(settingsMap.two_factor_roles.value)
                   : settingsMap.two_factor_roles.value)
-              : ["Manager", "Audit", "Compliance", "User"],
+              : ["admin", "manager", "compliance", "audit", "users"],
         });
       }
     } catch (error) {
@@ -255,10 +263,24 @@ const SecuritySettings = () => {
         },
         {
           key: "password_expiration_roles",
-          value: JSON.stringify(formData.password_expiration_roles),
-          type: "json",
+          value: formData.password_expiration_roles,
+          type: "array",
           group: "security",
           description: "Roles affected by password expiration (Admin is always excluded)",
+        },
+        {
+          key: "two_factor_enabled",
+          value: formData.two_factor_enabled,
+          type: "boolean",
+          group: "security",
+          description: "Enable two-factor authentication policy",
+        },
+        {
+          key: "two_factor_roles",
+          value: formData.two_factor_roles,
+          type: "array",
+          group: "security",
+          description: "Role slugs required to use two-factor authentication. No role is excluded.",
         },
       ];
 
@@ -659,7 +681,7 @@ const SecuritySettings = () => {
                           Enable Two-Factor Authentication
                         </p>
                         <p className="text-xs text-gray-500">
-                          Require users to verify identity with a second factor (Admin is always excluded)
+                          Require users to verify identity with a second factor
                         </p>
                       </div>
                     </label>
@@ -668,29 +690,29 @@ const SecuritySettings = () => {
                     {formData.two_factor_enabled && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Affected Roles (Admin is always excluded)
+                          Affected Roles
                         </label>
                         <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
-                          {["Manager", "Audit", "Compliance", "User"].map((role) => (
-                            <label key={role} className="flex items-center">
+                          {twoFactorRoleOptions.map(({ slug, label }) => (
+                            <label key={slug} className="flex items-center">
                               <input
                                 type="checkbox"
-                                checked={formData.two_factor_roles.includes(role)}
+                                checked={formData.two_factor_roles.includes(slug)}
                                 onChange={(e) => {
                                   const roles = e.target.checked
-                                    ? [...formData.two_factor_roles, role]
-                                    : formData.two_factor_roles.filter(r => r !== role);
+                                    ? [...formData.two_factor_roles, slug]
+                                    : formData.two_factor_roles.filter(r => r !== slug);
                                   setFormData({ ...formData, two_factor_roles: roles });
                                 }}
                                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                 disabled={saving}
                               />
-                              <span className="ml-2 text-sm text-gray-700">{role}</span>
+                              <span className="ml-2 text-sm text-gray-700">{label}</span>
                             </label>
                           ))}
                         </div>
                         <p className="mt-1 text-xs text-gray-500">
-                          Two-factor authentication will be required for selected roles
+                          Two-factor authentication will be required for selected roles. No role is excluded.
                         </p>
                       </div>
                     )}

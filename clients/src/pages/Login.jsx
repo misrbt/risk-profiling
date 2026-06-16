@@ -3,12 +3,13 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AuthLayout } from "../layouts";
 import { useAuth } from "../contexts/AuthContext";
 import { useSystemSettings } from "../contexts/SystemSettingsContext";
+import { getDefaultPathForUser } from "../utils/roleRedirect";
 import Logo from "../assets/rbt-logo.png.png";
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, isAuthenticated, user, twoFactorSetupRequired } = useAuth();
   const { systemName, systemLogo } = useSystemSettings();
 
   const [formData, setFormData] = useState({
@@ -24,39 +25,9 @@ export default function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
-      console.log("Already authenticated useEffect - User:", user);
-      console.log("User roles in useEffect:", user?.roles);
-
-      const isAdmin = user?.roles?.some((role) => role.slug === "admin");
-      const isCompliance = user?.roles?.some(
-        (role) => role.slug === "compliance"
-      );
-      const isManager = user?.roles?.some((role) => role.slug === "manager");
-
-      console.log(
-        "UseEffect role checks - Admin:",
-        isAdmin,
-        "Compliance:",
-        isCompliance,
-        "Manager:",
-        isManager
-      );
-
-      let defaultPath;
-      if (isAdmin) {
-        defaultPath = "/admin/dashboard";
-      } else if (isCompliance || isManager) {
-        defaultPath = "/dashboard";
-      } else {
-        defaultPath = "/risk-form";
-      }
-
-      console.log("UseEffect redirect path:", defaultPath);
-
-      // Always redirect to dashboard on fresh login (ignore any stored redirect paths)
-      navigate(defaultPath, { replace: true });
+      navigate(twoFactorSetupRequired ? "/two-factor-setup" : getDefaultPathForUser(user), { replace: true });
     }
-  }, [isAuthenticated, user, navigate, location]);
+  }, [isAuthenticated, user, twoFactorSetupRequired, navigate, location]);
 
   useEffect(() => {
     // Check for success message from registration
@@ -118,44 +89,14 @@ export default function Login() {
         formData.rememberMe
       );
 
-      if (result.success) {
-        // Redirect based on user role
-        const user = result.user;
-
-        // Debug logging
-        console.log("Login successful, user data:", user);
-        console.log("User roles:", user?.roles);
-
-        const isAdmin = user?.roles?.some((role) => role.slug === "admin");
-        const isCompliance = user?.roles?.some(
-          (role) => role.slug === "compliance"
-        );
-        const isManager = user?.roles?.some((role) => role.slug === "manager");
-
-        // Debug logging
-        console.log(
-          "Role checks - Admin:",
-          isAdmin,
-          "Compliance:",
-          isCompliance,
-          "Manager:",
-          isManager
-        );
-
-        // Check if there's a specific redirect path, otherwise use role-based default
-        let defaultPath;
-        if (isAdmin) {
-          defaultPath = "/admin/dashboard";
-        } else if (isCompliance || isManager) {
-          defaultPath = "/dashboard";
-        } else {
-          defaultPath = "/risk-form";
-        }
-
-        console.log("Redirect path:", defaultPath);
-
-        // Always redirect to dashboard on fresh login (ignore any stored redirect paths)
-        navigate(defaultPath, { replace: true });
+      if (result.success && result.two_factor_required) {
+        // Password was correct, but a verification code is still needed
+        // before a session can be created - hand off to the dedicated page.
+        navigate("/two-factor-verify", { state: { userId: result.user_id } });
+      } else if (result.success && result.two_factor_setup_required) {
+        navigate("/two-factor-setup", { replace: true });
+      } else if (result.success) {
+        navigate(getDefaultPathForUser(result.user), { replace: true });
       } else {
         setError(result.message);
       }

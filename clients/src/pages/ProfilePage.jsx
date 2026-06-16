@@ -1,12 +1,90 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import { useAuth } from '../contexts/AuthContext';
 import { UserAvatar } from '../components/ui';
 import { API_BASE_URL, API_ENDPOINTS } from '../config/constants';
 import { successAlert, errorAlert, confirmationAlert } from '../utils/sweetAlertConfig';
+import TwoFactorSetupModal from '../components/auth/TwoFactorSetupModal';
 
 export default function ProfilePage() {
   const { user, isComplianceOfficer, updateProfile, logout, setUserData } = useAuth();
+
+  const [twoFactorStatus, setTwoFactorStatus] = useState(null);
+  const [loadingTwoFactor, setLoadingTwoFactor] = useState(true);
+  const [showTwoFactorSetupModal, setShowTwoFactorSetupModal] = useState(false);
+  const [twoFactorActionLoading, setTwoFactorActionLoading] = useState(false);
+
+  const fetchTwoFactorStatus = async () => {
+    try {
+      const response = await axios.get('/two-factor/status');
+      if (response.data.success) {
+        setTwoFactorStatus(response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to load 2FA status:', error);
+    } finally {
+      setLoadingTwoFactor(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTwoFactorStatus();
+  }, []);
+
+  const promptPassword = async (title, confirmButtonText) => {
+    const { value: password } = await Swal.fire({
+      title,
+      input: 'password',
+      inputPlaceholder: 'Enter your current password',
+      showCancelButton: true,
+      confirmButtonText,
+      customClass: { popup: 'rounded-2xl' },
+      inputValidator: (value) => (!value ? 'Password is required' : undefined),
+    });
+    return password;
+  };
+
+  const handleDisableTwoFactor = async () => {
+    const password = await promptPassword('Disable Two-Factor Authentication', 'Disable');
+    if (!password) return;
+
+    setTwoFactorActionLoading(true);
+    try {
+      const response = await axios.post('/two-factor/disable', { password });
+      if (response.data.success) {
+        await successAlert('2FA Disabled', 'Two-factor authentication has been disabled for your account.');
+        await fetchTwoFactorStatus();
+      }
+    } catch (error) {
+      await errorAlert('Failed', error.response?.data?.message || 'Failed to disable two-factor authentication.');
+    } finally {
+      setTwoFactorActionLoading(false);
+    }
+  };
+
+  const handleRegenerateRecoveryCodes = async () => {
+    const password = await promptPassword('Regenerate Recovery Codes', 'Regenerate');
+    if (!password) return;
+
+    setTwoFactorActionLoading(true);
+    try {
+      const response = await axios.post('/two-factor/recovery-codes/regenerate', { password });
+      if (response.data.success) {
+        const codes = response.data.data.recovery_codes.join('\n');
+        await Swal.fire({
+          title: 'New Recovery Codes',
+          html: `<p class="text-sm text-gray-600 mb-3">Your old recovery codes no longer work. Save these in a secure place:</p><pre class="text-left bg-gray-50 p-3 rounded-lg text-sm">${codes}</pre>`,
+          icon: 'success',
+          customClass: { popup: 'rounded-2xl' },
+        });
+      }
+    } catch (error) {
+      await errorAlert('Failed', error.response?.data?.message || 'Failed to regenerate recovery codes.');
+    } finally {
+      setTwoFactorActionLoading(false);
+    }
+  };
   
   // Password strength validation function
   const validatePasswordStrength = (password) => {
@@ -479,6 +557,69 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Two-Factor Authentication */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Two-Factor Authentication</h2>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            {loadingTwoFactor ? (
+              <p className="text-gray-500 text-sm">Checking status...</p>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                        twoFactorStatus?.enabled
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {twoFactorStatus?.enabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                    {!twoFactorStatus?.enabled && twoFactorStatus?.is_required && (
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                        Required for your role
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm text-gray-600">
+                    {twoFactorStatus?.enabled
+                      ? 'A code from your authenticator app is required each time you log in.'
+                      : 'Add an authenticator app as a second factor when signing in.'}
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  {twoFactorStatus?.enabled ? (
+                    <>
+                      <button
+                        onClick={handleRegenerateRecoveryCodes}
+                        disabled={twoFactorActionLoading}
+                        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 font-medium rounded-lg transition-colors text-sm"
+                      >
+                        Regenerate Recovery Codes
+                      </button>
+                      <button
+                        onClick={handleDisableTwoFactor}
+                        disabled={twoFactorActionLoading}
+                        className="px-4 py-2 bg-red-50 hover:bg-red-100 disabled:opacity-50 text-red-700 font-medium rounded-lg transition-colors text-sm"
+                      >
+                        Disable
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setShowTwoFactorSetupModal(true)}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors text-sm"
+                    >
+                      Enable Two-Factor Authentication
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Action Buttons */}
         <div className="mt-8 flex flex-wrap gap-4">
           {isEditing ? (
@@ -804,6 +945,12 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        <TwoFactorSetupModal
+          isOpen={showTwoFactorSetupModal}
+          onClose={() => setShowTwoFactorSetupModal(false)}
+          onComplete={fetchTwoFactorStatus}
+        />
       </div>
     </div>
   );
