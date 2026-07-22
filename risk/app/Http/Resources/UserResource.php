@@ -20,6 +20,7 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'email_verified_at' => $this->email_verified_at,
             'status' => $this->status,
+            'two_factor_enabled' => (bool) $this->two_factor_enabled,
             'profile_pic' => $this->profile_pic ? Storage::disk('public')->url($this->profile_pic) : null,
             'roles' => RoleResource::collection($this->whenLoaded('roles')),
             'branch' => $this->whenLoaded('branch', function () {
