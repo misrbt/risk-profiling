@@ -35,7 +35,7 @@ const AdminNavbar = ({ user, onLogout, onMobileMenuToggle }) => {
               Admin Dashboard
             </h1>
             <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
-              Welcome back, {user?.first_name || "Administrator"}
+              Welcome back, {user?.first_name || user?.name?.split(' ')[0] || "Administrator"}
             </p>
           </div>
         </div>
@@ -53,8 +53,10 @@ const AdminNavbar = ({ user, onLogout, onMobileMenuToggle }) => {
               <div className="text-left hidden sm:block">
                 <p className="text-sm font-medium text-gray-900">
                   {user?.full_name ||
-                    `${user?.first_name} ${user?.last_name}` ||
-                    user?.username}
+                    user?.name ||
+                    (user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : null) ||
+                    user?.username ||
+                    user?.email}
                 </p>
                 <p className="text-xs text-gray-600">System Administrator</p>
               </div>

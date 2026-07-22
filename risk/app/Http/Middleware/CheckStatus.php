@@ -10,14 +10,14 @@ class CheckStatus
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! auth()->check()) {
+        $user = $request->user() ?? auth()->user();
+
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthenticated.',
             ], 401);
         }
-
-        $user = auth()->user();
 
         if ($user->status !== 'active') {
             auth()->logout();

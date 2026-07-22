@@ -3,27 +3,46 @@
 # ============================================================================
 # Environment variables - Root level
 .env
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.test
+.env.testing
 .env.*
 !.env.example
-!.env.testing
 
 # Environment variables - Backend (Laravel)
 /risk/.env
+/risk/.env.local
+/risk/.env.development
+/risk/.env.production
+/risk/.env.staging
+/risk/.env.test
+/risk/.env.testing
 /risk/.env.*
 !/risk/.env.example
-!/risk/.env.testing
 
 # Environment variables - Frontend (React)
 /clients/.env
+/clients/.env.local
+/clients/.env.development
+/clients/.env.production
+/clients/.env.staging
+/clients/.env.test
+/clients/.env.testing
 /clients/.env.*
 !/clients/.env.example
-!/clients/.env.testing
 
 # Sensitive configuration files
 config/database.php
 config/mail.php
 config/services.php
 auth.json
+
+# PM2 ecosystem configuration (environment-specific)
+ecosystem.config.js
+pm2.config.js
 
 # ============================================================================
 # DEPENDENCIES & BUILD ARTIFACTS

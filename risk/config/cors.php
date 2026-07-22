@@ -27,6 +27,10 @@ return [
         'http://192.168.0.213',
         'http://192.168.0.213:5173',
         'http://localhost:5173',
+        'http://staging.risk-profiling.local',
+        'https://staging.risk-profiling.local',
+        'http://192.168.0.2',
+        'https://192.168.0.2',
     ],
 
     'allowed_origins_patterns' => [
@@ -35,6 +39,8 @@ return [
         'http://192.168.*',
         'http://localhost:*',
         'http://risk-profiling.rbtbank.com*',
+        'http://staging.*.local*',
+        'https://staging.*.local*',
     ],
 
     'allowed_headers' => ['*'],

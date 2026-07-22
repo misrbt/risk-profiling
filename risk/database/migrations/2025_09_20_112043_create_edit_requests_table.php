@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('edit_requests')) {
+            return;
+        }
+
         Schema::create('edit_requests', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // User making the request
@@ -28,6 +32,7 @@ return new class extends Migration
             $table->index(['manager_id', 'status']);
             $table->index('status');
         });
+
     }
 
     /**

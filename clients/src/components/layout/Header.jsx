@@ -19,7 +19,12 @@ const Header = () => {
 
   const getUserDisplayName = () => {
     if (!user) return '';
-    return user.full_name || `${user.first_name} ${user.last_name}` || user.email;
+    return user.full_name ||
+      user.name ||
+      (user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : null) ||
+      user.username ||
+      user.email ||
+      '';
   };
 
   const getUserRole = () => {

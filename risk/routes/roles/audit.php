@@ -7,7 +7,7 @@ use App\Http\Controllers\CustomerController;
 use Illuminate\Support\Facades\Route;
 
 // Audit role routes - Read-only access to dashboard, customers, and audit logs
-Route::middleware(['auth:sanctum', 'status', 'role:audit'])->prefix('audit')->group(function () {
+Route::middleware(['status', 'role:audit'])->prefix('audit')->group(function () {
 
     // Dashboard access (read-only, based on compliance)
     Route::prefix('dashboard')->group(function () {
