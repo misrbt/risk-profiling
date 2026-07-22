@@ -6,7 +6,7 @@ use App\Http\Controllers\EditRequestController;
 use Illuminate\Support\Facades\Route;
 
 // User-only routes - Limited risk assessment access
-Route::middleware(['status', 'role:users'])->prefix('user')->group(function () {
+Route::middleware(['auth:sanctum', 'status', 'role:users'])->prefix('user')->group(function () {
 
     // Risk assessment functionality - Core function for users
     Route::get('/criteria', [CustomerController::class, 'getCriteria'])->middleware(['role.permission:permission,create-risk-assessments']);

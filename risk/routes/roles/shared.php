@@ -4,34 +4,19 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\OnlineUsersController;
 use App\Http\Controllers\Api\TwoFactorAuthController;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Broadcast;
-
-// CSRF Cookie route for session-based authentication
-Route::get('/sanctum/csrf-cookie', function () {
-    return response()->json(['message' => 'CSRF cookie set']);
-})->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class);
+use Illuminate\Support\Facades\Route;
 
 // Public routes - stateless API endpoints (no authentication required)
-// Completely bypass Sanctum stateful middleware for login to support both domain and IP access
-Route::post('/auth/register', [AuthController::class, 'register'])
-    ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
+Route::post('/auth/register', [AuthController::class, 'register']);
 
-Route::post('/auth/login', [AuthController::class, 'login'])
-    ->withoutMiddleware([
-        \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-        \Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
-        \Illuminate\Session\Middleware\StartSession::class,
-    ]);
+Route::post('/auth/login', [AuthController::class, 'login']);
 
-Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])
-    ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
 
-Route::post('/auth/validate-reset-token', [AuthController::class, 'validateResetToken'])
-    ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
+Route::post('/auth/validate-reset-token', [AuthController::class, 'validateResetToken']);
 
-Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])
-    ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
 // Public branch routes for registration
 Route::get('/branches/dropdown', [BranchController::class, 'dropdown']);
@@ -42,12 +27,12 @@ Route::get('/maintenance/status', function () {
         'maintenance_mode' => app()->isDownForMaintenance(),
         'message' => app()->isDownForMaintenance()
             ? 'The application is currently under maintenance. Please check back later.'
-            : 'Application is running normally.'
+            : 'Application is running normally.',
     ]);
 });
 
 // Shared authenticated routes - accessible by all authenticated users
-Route::middleware(['status'])->group(function () {
+Route::middleware(['auth:sanctum', 'status'])->group(function () {
 
     // Broadcasting authentication route
     Broadcast::routes(['middleware' => ['auth:sanctum']]);

@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Concerns;
 
+use App\Http\Resources\UserResource;
 use App\Models\AuditLog;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Models\UserActivity;
 use App\Services\TwoFactorPolicy;
-use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 
 trait IssuesAuthSession
@@ -39,7 +39,6 @@ trait IssuesAuthSession
         $tokenResult = $user->createToken('auth-token', ['*'], $expiresAt);
         $token = $tokenResult->plainTextToken;
 
-        auth()->login($user);
         UserActivity::log(
             'login',
             'User logged into the application',

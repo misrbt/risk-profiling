@@ -5,7 +5,7 @@ use App\Http\Controllers\EditRequestController;
 use Illuminate\Support\Facades\Route;
 
 // Manager-only routes - Dashboard and customer viewing access
-Route::middleware(['status', 'role:manager'])->prefix('manager')->group(function () {
+Route::middleware(['auth:sanctum', 'status', 'role:manager'])->prefix('manager')->group(function () {
 
     // Dashboard routes - Manager access
     Route::prefix('dashboard')->group(function () {
