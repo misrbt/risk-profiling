@@ -4,9 +4,9 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
   PencilIcon,
-  TrashIcon,
   UserIcon,
   ShieldCheckIcon,
+  ShieldExclamationIcon,
   ChevronUpIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
@@ -230,16 +230,36 @@ const UserManagement = () => {
     [currentUser, fetchUsers, logout, navigate]
   );
 
-  const handleDeleteUser = useCallback(
+  const handleResetMfa = useCallback(
     async (userId, userName) => {
+      const isOwnAccount = currentUser && currentUser.id === userId;
+
       const result = await Swal.fire({
-        title: "Delete User",
-        text: `Are you sure you want to delete ${userName}? This action cannot be undone.`,
+        title: "Reset MFA",
+        html: `
+        <p class="mb-4">Are you sure you want to reset two-factor authentication for <strong>${userName}</strong>?</p>
+        ${
+          isOwnAccount
+            ? `<div class="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-md">
+          <p class="text-orange-800 text-sm font-medium">⚠️ Warning</p>
+          <p class="text-orange-700 text-sm mt-1">You are resetting your own MFA. You will be logged out after this action.</p>
+        </div>`
+            : ""
+        }
+        <div class="text-left bg-gray-50 p-3 rounded-md">
+          <p class="text-sm text-gray-600 mb-2"><strong>What will happen:</strong></p>
+          <ul class="text-sm text-gray-600 list-disc list-inside space-y-1">
+            <li>The user's current authenticator enrollment will be cleared</li>
+            <li>User must set up two-factor authentication again (scan a new QR code)</li>
+            <li>All existing user sessions will be terminated</li>
+          </ul>
+        </div>
+      `,
         icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: "#dc2626",
+        confirmButtonColor: "#f59e0b",
         cancelButtonColor: "#6b7280",
-        confirmButtonText: "Yes, delete user",
+        confirmButtonText: "Yes, reset MFA",
         cancelButtonText: "Cancel",
         backdrop: `
         rgba(0,0,0,0.5)
@@ -268,42 +288,48 @@ const UserManagement = () => {
 
       if (result.isConfirmed) {
         try {
-          await api.delete(`/admin/users/${userId}`);
+          const response = await api.post(`/admin/users/${userId}/reset-mfa`);
+
           await fetchUsers();
-          Swal.fire({
-            title: "Deleted!",
-            text: "User has been deleted successfully.",
+
+          let message = response.data.message || "MFA reset successfully.";
+
+          if (isOwnAccount) {
+            message += `<br><br><div class="bg-orange-50 border border-orange-200 rounded-md p-3">
+            <em class="text-orange-700 text-sm">You will be redirected to the login page in 3 seconds...</em>
+          </div>`;
+          }
+
+          await Swal.fire({
+            title: "MFA Reset!",
+            html: message,
             icon: "success",
-            backdrop: "rgba(0,0,0,0.5)",
+            confirmButtonText: "OK",
             customClass: {
-              popup: "rounded-2xl shadow-2xl",
-              title: "text-xl font-bold text-gray-900",
-              htmlContainer: "text-gray-600",
-              confirmButton:
-                "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 shadow-md",
+              popup: "rounded-2xl",
             },
-            buttonsStyling: false,
           });
+
+          if (isOwnAccount) {
+            setTimeout(async () => {
+              await logout();
+              navigate("/login");
+            }, 3000);
+          }
         } catch (error) {
-          console.error("Error deleting user:", error);
+          console.error("Error resetting MFA:", error);
           Swal.fire({
             title: "Error",
-            text: "Failed to delete user",
+            text: error.response?.data?.message || "Failed to reset MFA",
             icon: "error",
-            backdrop: "rgba(0,0,0,0.5)",
             customClass: {
-              popup: "rounded-2xl shadow-2xl",
-              title: "text-xl font-bold text-gray-900",
-              htmlContainer: "text-gray-600",
-              confirmButton:
-                "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 shadow-md",
+              popup: "rounded-2xl",
             },
-            buttonsStyling: false,
           });
         }
       }
     },
-    [fetchUsers]
+    [currentUser, fetchUsers, logout, navigate]
   );
 
   const handleStatusChange = useCallback(
@@ -511,15 +537,17 @@ const UserManagement = () => {
               >
                 <KeyIcon className="w-4 h-4" />
               </button>
-              <button
-                onClick={() =>
-                  handleDeleteUser(user.id, user.full_name || user.username)
-                }
-                className="text-red-600 hover:text-red-900"
-                title="Delete User"
-              >
-                <TrashIcon className="w-4 h-4" />
-              </button>
+              {user.two_factor_enabled && (
+                <button
+                  onClick={() =>
+                    handleResetMfa(user.id, user.full_name || user.username)
+                  }
+                  className="text-purple-600 hover:text-purple-900"
+                  title="Reset MFA"
+                >
+                  <ShieldExclamationIcon className="w-4 h-4" />
+                </button>
+              )}
             </div>
           );
         },
@@ -532,7 +560,7 @@ const UserManagement = () => {
       handleStatusChange,
       handleOpenModal,
       handleResetPassword,
-      handleDeleteUser,
+      handleResetMfa,
     ]
   );
 

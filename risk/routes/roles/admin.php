@@ -27,6 +27,7 @@ Route::middleware(['status'])->prefix('admin')->group(function () {
         Route::delete('/{user}/roles', [UserController::class, 'removeRole']);
         Route::put('/{user}/roles', [UserController::class, 'syncRoles']);
         Route::post('/{user}/reset-password', [UserController::class, 'resetPassword']);
+        Route::post('/{user}/reset-mfa', [UserController::class, 'resetMfa']);
         Route::delete('/{user}', [UserController::class, 'destroy']);
     });
 

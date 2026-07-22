@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Rules\StrongPassword;
 use Illuminate\Http\JsonResponse;
@@ -235,6 +236,53 @@ class UserController extends Controller
             'success' => true,
             'message' => 'Password reset successfully. Temporary password provided.',
             'temporary_password' => $temporaryPassword,
+            'data' => new UserResource($user->load(['roles.permissions', 'branch'])),
+        ]);
+    }
+
+    public function resetMfa(Request $request, User $user): JsonResponse
+    {
+        // Allow admins to reset their own MFA, but prevent other users from doing so
+        $currentUser = auth()->user();
+        $isAdmin = $currentUser->roles()->where('slug', 'admin')->exists();
+
+        if ($user->id === auth()->id() && ! $isAdmin) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot reset your own MFA',
+            ], 422);
+        }
+
+        if (! $isAdmin) {
+            return response()->json([
+                'success' => false,
+                'message' => "Only administrators can reset another user's MFA",
+            ], 403);
+        }
+
+        $wasEnabled = (bool) $user->two_factor_enabled;
+
+        $user->update([
+            'two_factor_enabled' => false,
+            'two_factor_secret' => null,
+            'two_factor_recovery_codes' => null,
+            'two_factor_confirmed_at' => null,
+        ]);
+
+        // Revoke all existing tokens for security
+        $user->tokens()->delete();
+
+        AuditLog::log(
+            'mfa_reset',
+            'users',
+            $user->id,
+            ['two_factor_enabled' => $wasEnabled],
+            ['two_factor_enabled' => false]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'MFA reset successfully. The user will need to set up two-factor authentication again.',
             'data' => new UserResource($user->load(['roles.permissions', 'branch'])),
         ]);
     }
