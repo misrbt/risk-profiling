@@ -7,6 +7,7 @@ import {
   TrashIcon,
   UserIcon,
   ShieldCheckIcon,
+  ShieldExclamationIcon,
   ChevronUpIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
@@ -219,6 +220,108 @@ const UserManagement = () => {
           Swal.fire({
             title: "Error",
             text: error.response?.data?.message || "Failed to reset password",
+            icon: "error",
+            customClass: {
+              popup: "rounded-2xl",
+            },
+          });
+        }
+      }
+    },
+    [currentUser, fetchUsers, logout, navigate]
+  );
+
+  const handleResetMfa = useCallback(
+    async (userId, userName) => {
+      const isOwnAccount = currentUser && currentUser.id === userId;
+
+      const result = await Swal.fire({
+        title: "Reset MFA",
+        html: `
+        <p class="mb-4">Are you sure you want to reset two-factor authentication for <strong>${userName}</strong>?</p>
+        ${
+          isOwnAccount
+            ? `<div class="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-md">
+          <p class="text-orange-800 text-sm font-medium">⚠️ Warning</p>
+          <p class="text-orange-700 text-sm mt-1">You are resetting your own MFA. You will be logged out after this action.</p>
+        </div>`
+            : ""
+        }
+        <div class="text-left bg-gray-50 p-3 rounded-md">
+          <p class="text-sm text-gray-600 mb-2"><strong>What will happen:</strong></p>
+          <ul class="text-sm text-gray-600 list-disc list-inside space-y-1">
+            <li>The user's current authenticator enrollment will be cleared</li>
+            <li>User must set up two-factor authentication again (scan a new QR code)</li>
+            <li>All existing user sessions will be terminated</li>
+          </ul>
+        </div>
+      `,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#f59e0b",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: "Yes, reset MFA",
+        cancelButtonText: "Cancel",
+        backdrop: `
+        rgba(0,0,0,0.5)
+        left top
+        no-repeat
+      `,
+        customClass: {
+          popup: "rounded-2xl shadow-2xl backdrop-blur-sm",
+          title: "text-xl font-bold text-gray-900 mb-2",
+          htmlContainer: "text-gray-600 mb-4",
+          confirmButton:
+            "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 shadow-md mr-3",
+          cancelButton:
+            "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200",
+          actions: "flex-row-reverse gap-3",
+        },
+        buttonsStyling: false,
+        allowOutsideClick: () => !Swal.isLoading(),
+        showClass: {
+          popup: "animate__animated animate__fadeInUp animate__faster",
+        },
+        hideClass: {
+          popup: "animate__animated animate__fadeOutDown animate__faster",
+        },
+      });
+
+      if (result.isConfirmed) {
+        try {
+          const response = await api.post(`/admin/users/${userId}/reset-mfa`);
+
+          await fetchUsers();
+
+          let message = response.data.message || "MFA reset successfully.";
+
+          if (isOwnAccount) {
+            message += `<br><br><div class="bg-orange-50 border border-orange-200 rounded-md p-3">
+            <em class="text-orange-700 text-sm">You will be redirected to the login page in 3 seconds...</em>
+          </div>`;
+          }
+
+          await Swal.fire({
+            title: "MFA Reset!",
+            html: message,
+            icon: "success",
+            confirmButtonText: "OK",
+            customClass: {
+              popup: "rounded-2xl",
+            },
+          });
+
+          if (isOwnAccount) {
+            setTimeout(async () => {
+              await logout();
+              navigate("/login");
+            }, 3000);
+          }
+        } catch (error) {
+          console.error("Error resetting MFA:", error);
+          Swal.fire({
+            title: "Error",
+            text: error.response?.data?.message || "Failed to reset MFA",
             icon: "error",
             customClass: {
               popup: "rounded-2xl",
@@ -511,6 +614,17 @@ const UserManagement = () => {
               >
                 <KeyIcon className="w-4 h-4" />
               </button>
+              {user.two_factor_enabled && (
+                <button
+                  onClick={() =>
+                    handleResetMfa(user.id, user.full_name || user.username)
+                  }
+                  className="text-purple-600 hover:text-purple-900"
+                  title="Reset MFA"
+                >
+                  <ShieldExclamationIcon className="w-4 h-4" />
+                </button>
+              )}
               <button
                 onClick={() =>
                   handleDeleteUser(user.id, user.full_name || user.username)
@@ -532,6 +646,7 @@ const UserManagement = () => {
       handleStatusChange,
       handleOpenModal,
       handleResetPassword,
+      handleResetMfa,
       handleDeleteUser,
     ]
   );
