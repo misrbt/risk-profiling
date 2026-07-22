@@ -4,7 +4,6 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
   PencilIcon,
-  TrashIcon,
   UserIcon,
   ShieldCheckIcon,
   ShieldExclamationIcon,
@@ -333,82 +332,6 @@ const UserManagement = () => {
     [currentUser, fetchUsers, logout, navigate]
   );
 
-  const handleDeleteUser = useCallback(
-    async (userId, userName) => {
-      const result = await Swal.fire({
-        title: "Delete User",
-        text: `Are you sure you want to delete ${userName}? This action cannot be undone.`,
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#dc2626",
-        cancelButtonColor: "#6b7280",
-        confirmButtonText: "Yes, delete user",
-        cancelButtonText: "Cancel",
-        backdrop: `
-        rgba(0,0,0,0.5)
-        left top
-        no-repeat
-      `,
-        customClass: {
-          popup: "rounded-2xl shadow-2xl backdrop-blur-sm",
-          title: "text-xl font-bold text-gray-900 mb-2",
-          htmlContainer: "text-gray-600 mb-4",
-          confirmButton:
-            "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 shadow-md mr-3",
-          cancelButton:
-            "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200",
-          actions: "flex-row-reverse gap-3",
-        },
-        buttonsStyling: false,
-        allowOutsideClick: () => !Swal.isLoading(),
-        showClass: {
-          popup: "animate__animated animate__fadeInUp animate__faster",
-        },
-        hideClass: {
-          popup: "animate__animated animate__fadeOutDown animate__faster",
-        },
-      });
-
-      if (result.isConfirmed) {
-        try {
-          await api.delete(`/admin/users/${userId}`);
-          await fetchUsers();
-          Swal.fire({
-            title: "Deleted!",
-            text: "User has been deleted successfully.",
-            icon: "success",
-            backdrop: "rgba(0,0,0,0.5)",
-            customClass: {
-              popup: "rounded-2xl shadow-2xl",
-              title: "text-xl font-bold text-gray-900",
-              htmlContainer: "text-gray-600",
-              confirmButton:
-                "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 shadow-md",
-            },
-            buttonsStyling: false,
-          });
-        } catch (error) {
-          console.error("Error deleting user:", error);
-          Swal.fire({
-            title: "Error",
-            text: "Failed to delete user",
-            icon: "error",
-            backdrop: "rgba(0,0,0,0.5)",
-            customClass: {
-              popup: "rounded-2xl shadow-2xl",
-              title: "text-xl font-bold text-gray-900",
-              htmlContainer: "text-gray-600",
-              confirmButton:
-                "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 shadow-md",
-            },
-            buttonsStyling: false,
-          });
-        }
-      }
-    },
-    [fetchUsers]
-  );
-
   const handleStatusChange = useCallback(
     async (userId, newStatus) => {
       try {
@@ -625,15 +548,6 @@ const UserManagement = () => {
                   <ShieldExclamationIcon className="w-4 h-4" />
                 </button>
               )}
-              <button
-                onClick={() =>
-                  handleDeleteUser(user.id, user.full_name || user.username)
-                }
-                className="text-red-600 hover:text-red-900"
-                title="Delete User"
-              >
-                <TrashIcon className="w-4 h-4" />
-              </button>
             </div>
           );
         },
@@ -647,7 +561,6 @@ const UserManagement = () => {
       handleOpenModal,
       handleResetPassword,
       handleResetMfa,
-      handleDeleteUser,
     ]
   );
 

@@ -46,7 +46,7 @@ const UserModal = ({
           username: user.username || "",
           email: user.email || "",
           role: user.roles?.[0]?.slug || "",
-          branch_id: user.branch_id ? String(user.branch_id) : "",
+          branch_id: user.branch?.id ? String(user.branch.id) : "",
           status: user.status || "active",
         });
       } else {
