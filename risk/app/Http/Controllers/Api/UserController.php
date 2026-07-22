@@ -253,6 +253,13 @@ class UserController extends Controller
             ], 422);
         }
 
+        if (! $isAdmin) {
+            return response()->json([
+                'success' => false,
+                'message' => "Only administrators can reset another user's MFA",
+            ], 403);
+        }
+
         $wasEnabled = (bool) $user->two_factor_enabled;
 
         $user->update([

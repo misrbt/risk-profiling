@@ -94,4 +94,21 @@ class ResetMfaTest extends TestCase
         $response->assertOk();
         $response->assertJson(['success' => true]);
     }
+
+    public function test_non_admin_cannot_reset_another_users_mfa(): void
+    {
+        $nonAdmin = User::factory()->create();
+
+        $target = User::factory()->create([
+            'two_factor_enabled' => true,
+            'two_factor_secret' => encrypt('test-secret'),
+        ]);
+
+        $response = $this->actingAs($nonAdmin)->postJson("/api/admin/users/{$target->id}/reset-mfa");
+
+        $response->assertStatus(403);
+
+        $target->refresh();
+        $this->assertTrue($target->two_factor_enabled);
+    }
 }
