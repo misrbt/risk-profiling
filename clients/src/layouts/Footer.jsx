@@ -14,7 +14,15 @@ export default function Footer() {
             <span className="text-xs text-slate-500">Powered by</span>
             <div className="flex items-center space-x-2">
               <span className="text-sm font-medium text-slate-700">
-                MIS Department | Designed and Developed by Augustin Maputol
+                MIS Department | Designed and Developed by{" "}
+                <a
+                  href="https://augustin-maps.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  augustin-maps.com
+                </a>
               </span>
             </div>
           </div>
