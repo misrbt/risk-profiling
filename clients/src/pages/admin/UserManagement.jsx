@@ -14,6 +14,8 @@ import {
   KeyIcon,
   SignalIcon,
   UserGroupIcon,
+  LockClosedIcon,
+  LockOpenIcon,
 } from "@heroicons/react/24/outline";
 import {
   useReactTable,
@@ -332,6 +334,91 @@ const UserManagement = () => {
     [currentUser, fetchUsers, logout, navigate]
   );
 
+  const handleToggleTwoFactorExemption = useCallback(
+    async (userId, userName, currentlyExempt) => {
+      const makeExempt = !currentlyExempt;
+
+      const result = await Swal.fire({
+        title: makeExempt ? "Exempt from 2FA" : "Remove 2FA Exemption",
+        html: makeExempt
+          ? `
+        <p class="mb-4">Are you sure you want to exempt <strong>${userName}</strong> from two-factor authentication?</p>
+        <div class="text-left bg-gray-50 p-3 rounded-md">
+          <p class="text-sm text-gray-600 mb-2"><strong>What will happen:</strong></p>
+          <ul class="text-sm text-gray-600 list-disc list-inside space-y-1">
+            <li>This user will log in with just email and password, regardless of role policy</li>
+            <li>Any existing authenticator enrollment will be cleared and their sessions ended</li>
+          </ul>
+        </div>
+      `
+          : `<p>Are you sure you want to remove the 2FA exemption for <strong>${userName}</strong>? They will be subject to the normal role-based 2FA policy again.</p>`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#7c3aed",
+        cancelButtonColor: "#6b7280",
+        confirmButtonText: makeExempt ? "Yes, exempt user" : "Yes, remove exemption",
+        cancelButtonText: "Cancel",
+        backdrop: `
+        rgba(0,0,0,0.5)
+        left top
+        no-repeat
+      `,
+        customClass: {
+          popup: "rounded-2xl shadow-2xl backdrop-blur-sm",
+          title: "text-xl font-bold text-gray-900 mb-2",
+          htmlContainer: "text-gray-600 mb-4",
+          confirmButton:
+            "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 shadow-md mr-3",
+          cancelButton:
+            "px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200",
+          actions: "flex-row-reverse gap-3",
+        },
+        buttonsStyling: false,
+        allowOutsideClick: () => !Swal.isLoading(),
+        showClass: {
+          popup: "animate__animated animate__fadeInUp animate__faster",
+        },
+        hideClass: {
+          popup: "animate__animated animate__fadeOutDown animate__faster",
+        },
+      });
+
+      if (result.isConfirmed) {
+        try {
+          const response = await api.put(
+            `/admin/users/${userId}/two-factor-exemption`,
+            { two_factor_exempt: makeExempt }
+          );
+
+          await fetchUsers();
+
+          Swal.fire({
+            title: "Updated!",
+            text: response.data.message || "Two-factor exemption updated.",
+            icon: "success",
+            confirmButtonText: "OK",
+            customClass: {
+              popup: "rounded-2xl",
+            },
+          });
+        } catch (error) {
+          console.error("Error updating two-factor exemption:", error);
+          Swal.fire({
+            title: "Error",
+            text:
+              error.response?.data?.message ||
+              "Failed to update two-factor exemption",
+            icon: "error",
+            customClass: {
+              popup: "rounded-2xl",
+            },
+          });
+        }
+      }
+    },
+    [fetchUsers]
+  );
+
   const handleStatusChange = useCallback(
     async (userId, newStatus) => {
       try {
@@ -548,6 +635,31 @@ const UserManagement = () => {
                   <ShieldExclamationIcon className="w-4 h-4" />
                 </button>
               )}
+              <button
+                onClick={() =>
+                  handleToggleTwoFactorExemption(
+                    user.id,
+                    user.full_name || user.username,
+                    user.two_factor_exempt
+                  )
+                }
+                className={
+                  user.two_factor_exempt
+                    ? "text-gray-500 hover:text-gray-700"
+                    : "text-teal-600 hover:text-teal-900"
+                }
+                title={
+                  user.two_factor_exempt
+                    ? "Remove 2FA Exemption"
+                    : "Exempt from 2FA"
+                }
+              >
+                {user.two_factor_exempt ? (
+                  <LockOpenIcon className="w-4 h-4" />
+                ) : (
+                  <LockClosedIcon className="w-4 h-4" />
+                )}
+              </button>
             </div>
           );
         },
@@ -561,6 +673,7 @@ const UserManagement = () => {
       handleOpenModal,
       handleResetPassword,
       handleResetMfa,
+      handleToggleTwoFactorExemption,
     ]
   );
 

@@ -30,6 +30,7 @@ class User extends Authenticatable
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_confirmed_at',
+        'two_factor_exempt',
     ];
 
     protected $hidden = [
@@ -49,6 +50,7 @@ class User extends Authenticatable
             'last_seen_at' => 'datetime',
             'two_factor_enabled' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
+            'two_factor_exempt' => 'boolean',
         ];
     }
 
@@ -98,8 +100,6 @@ class User extends Authenticatable
 
     /**
      * Check if user's password has expired
-     *
-     * @return bool
      */
     public function isPasswordExpired(): bool
     {
@@ -110,7 +110,7 @@ class User extends Authenticatable
             }
 
             // Check if system_settings table exists
-            if (!\Schema::hasTable('system_settings')) {
+            if (! \Schema::hasTable('system_settings')) {
                 return false;
             }
 
@@ -140,14 +140,14 @@ class User extends Authenticatable
 
             // Check if user has any affected role
             $userRoles = $this->roles->pluck('name')->toArray();
-            $hasAffectedRole = !empty(array_intersect($userRoles, $affectedRoles));
+            $hasAffectedRole = ! empty(array_intersect($userRoles, $affectedRoles));
 
-            if (!$hasAffectedRole) {
+            if (! $hasAffectedRole) {
                 return false;
             }
 
             // Check if password_changed_at exists and if it's expired
-            if (!$this->password_changed_at) {
+            if (! $this->password_changed_at) {
                 return false;
             }
 
@@ -156,15 +156,14 @@ class User extends Authenticatable
             return \Carbon\Carbon::now()->greaterThan($expirationDate);
         } catch (\Exception $e) {
             // If any error occurs, return false (password not expired)
-            \Log::error('Password expiration check failed: ' . $e->getMessage());
+            \Log::error('Password expiration check failed: '.$e->getMessage());
+
             return false;
         }
     }
 
     /**
      * Get days until password expires (negative if already expired)
-     *
-     * @return int|null
      */
     public function daysUntilPasswordExpires(): ?int
     {
@@ -174,7 +173,7 @@ class User extends Authenticatable
             }
 
             // Check if system_settings table exists
-            if (!\Schema::hasTable('system_settings')) {
+            if (! \Schema::hasTable('system_settings')) {
                 return null;
             }
 
@@ -192,7 +191,7 @@ class User extends Authenticatable
                 ->where('key', 'password_expiration_months')
                 ->value('value');
 
-            if (!$this->password_changed_at) {
+            if (! $this->password_changed_at) {
                 return null;
             }
 
@@ -201,7 +200,8 @@ class User extends Authenticatable
             return \Carbon\Carbon::now()->diffInDays($expirationDate, false);
         } catch (\Exception $e) {
             // If any error occurs, return null
-            \Log::error('Password expiration days check failed: ' . $e->getMessage());
+            \Log::error('Password expiration days check failed: '.$e->getMessage());
+
             return null;
         }
     }

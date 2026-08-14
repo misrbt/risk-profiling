@@ -287,6 +287,59 @@ class UserController extends Controller
         ]);
     }
 
+    public function updateTwoFactorExemption(Request $request, User $user): JsonResponse
+    {
+        $currentUser = auth()->user();
+        $isAdmin = $currentUser->roles()->where('slug', 'admin')->exists();
+
+        if (! $isAdmin) {
+            return response()->json([
+                'success' => false,
+                'message' => "Only administrators can change a user's two-factor exemption",
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'two_factor_exempt' => ['required', 'boolean'],
+        ]);
+
+        $wasExempt = (bool) $user->two_factor_exempt;
+        $exempt = $validated['two_factor_exempt'];
+
+        $updates = ['two_factor_exempt' => $exempt];
+
+        // Exempting a user who already completed 2FA setup should take effect
+        // immediately rather than only on their next forced setup prompt.
+        if ($exempt && $user->two_factor_enabled) {
+            $updates['two_factor_enabled'] = false;
+            $updates['two_factor_secret'] = null;
+            $updates['two_factor_recovery_codes'] = null;
+            $updates['two_factor_confirmed_at'] = null;
+        }
+
+        $user->update($updates);
+
+        if (isset($updates['two_factor_enabled'])) {
+            $user->tokens()->delete();
+        }
+
+        AuditLog::log(
+            'two_factor_exempt_updated',
+            'users',
+            $user->id,
+            ['two_factor_exempt' => $wasExempt],
+            ['two_factor_exempt' => $exempt]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => $exempt
+                ? 'User is now exempt from two-factor authentication.'
+                : 'User is no longer exempt from two-factor authentication.',
+            'data' => new UserResource($user->load(['roles.permissions', 'branch'])),
+        ]);
+    }
+
     public function destroy(User $user): JsonResponse
     {
         if ($user->id === auth()->id()) {

@@ -11,10 +11,15 @@ class TwoFactorPolicy
      * Determine if two-factor authentication is required for the given user
      * based on the global security policy. No role, including admin, is
      * exempted - the policy applies uniformly to whichever roles are selected.
+     * Individual users may still be exempted via the two_factor_exempt flag.
      */
     public static function isRequiredForUser(User $user): bool
     {
         try {
+            if ($user->two_factor_exempt) {
+                return false;
+            }
+
             if (! Schema::hasTable('system_settings')) {
                 return false;
             }

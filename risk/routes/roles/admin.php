@@ -28,6 +28,7 @@ Route::middleware(['auth:sanctum', 'status'])->prefix('admin')->group(function (
         Route::put('/{user}/roles', [UserController::class, 'syncRoles']);
         Route::post('/{user}/reset-password', [UserController::class, 'resetPassword']);
         Route::post('/{user}/reset-mfa', [UserController::class, 'resetMfa']);
+        Route::put('/{user}/two-factor-exemption', [UserController::class, 'updateTwoFactorExemption']);
         Route::delete('/{user}', [UserController::class, 'destroy']);
     });
 
