@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import * as XLSX from "xlsx";
-import { FiCalendar, FiDownload, FiRefreshCw, FiSearch } from "react-icons/fi";
+import { FiArrowLeft, FiCalendar, FiDownload, FiRefreshCw, FiSearch, FiX } from "react-icons/fi";
 import { Card, CardHeader, CardContent } from "../ui";
 import api from "../../services/api";
 
@@ -50,18 +50,24 @@ const pct = (part, total) => (total > 0 ? ((part / total) * 100).toFixed(1) : "0
  * @param {number|string} sectionNumber - number shown in the section badge
  */
 export default function AsOfRiskReport({ apiPrefix = "admin", sectionNumber = 4 }) {
-  const [asOf, setAsOf] = useState(todayLocal());
+  // No default cut-off: details are only shown once the user picks a date.
+  const [asOf, setAsOf] = useState("");
   const [branchId, setBranchId] = useState("all");
-  const [profilesScope, setProfilesScope] = useState("daily");
+  const [profilesScope, setProfilesScope] = useState("cumulative");
   const [branchPeriod, setBranchPeriod] = useState("cumulative");
   const [riskFilter, setRiskFilter] = useState("");
   const [search, setSearch] = useState("");
   const [branchOptions, setBranchOptions] = useState([]);
   const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const profilesRef = useRef(null);
 
   const fetchReport = useCallback(async () => {
+    if (!asOf) {
+      setReport(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -107,6 +113,26 @@ export default function AsOfRiskReport({ apiPrefix = "admin", sectionNumber = 4 
 
   const branchRows = report?.branches || [];
   const branchTotals = report?.summary?.[branchPeriod] || { low: 0, moderate: 0, high: 0, total: 0 };
+
+  const clearCutoff = () => {
+    setAsOf("");
+    setBranchId("all");
+    setRiskFilter("");
+    setSearch("");
+    setError(null);
+  };
+
+  // Drill down from the By Branch table into that branch's customers.
+  const drillDown = (branch, levelValue = "") => {
+    if (branch.branch_id === null || branch.branch_id === undefined) return;
+    setBranchId(String(branch.branch_id));
+    setProfilesScope(branchPeriod);
+    setRiskFilter(levelValue);
+    setSearch("");
+    requestAnimationFrame(() =>
+      profilesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    );
+  };
 
   const exportExcel = () => {
     if (!report) return;
@@ -190,7 +216,7 @@ export default function AsOfRiskReport({ apiPrefix = "admin", sectionNumber = 4 
                     type="date"
                     value={asOf}
                     max={todayLocal()}
-                    onChange={(e) => e.target.value && setAsOf(e.target.value)}
+                    onChange={(e) => setAsOf(e.target.value)}
                     className="pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
@@ -200,7 +226,8 @@ export default function AsOfRiskReport({ apiPrefix = "admin", sectionNumber = 4 
                 <select
                   value={branchId}
                   onChange={(e) => setBranchId(e.target.value)}
-                  className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!asOf}
+                  className="disabled:bg-slate-50 disabled:text-slate-400 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800 min-w-[220px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="all">Bank-wide (All Branches)</option>
                   {branchOptions.map((b) => (
@@ -218,10 +245,20 @@ export default function AsOfRiskReport({ apiPrefix = "admin", sectionNumber = 4 
                 >
                   Today
                 </button>
+                {asOf && (
+                  <button
+                    type="button"
+                    onClick={clearCutoff}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+                  >
+                    <FiX /> Clear
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={fetchReport}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+                  disabled={!asOf}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                   title="Refresh"
                 >
                   <FiRefreshCw className={loading ? "animate-spin" : ""} />
@@ -238,7 +275,7 @@ export default function AsOfRiskReport({ apiPrefix = "admin", sectionNumber = 4 
               <FiDownload /> Export Excel
             </button>
           </div>
-          {report && (
+          {asOf && report && (
             <p className="text-sm text-slate-500 mt-3">
               Showing <span className="font-semibold text-slate-800">{selectedBranchName}</span> as of{" "}
               <span className="font-semibold text-slate-800">{report.as_of_label}</span>
@@ -253,7 +290,18 @@ export default function AsOfRiskReport({ apiPrefix = "admin", sectionNumber = 4 
             </div>
           )}
 
-          {loading && !report ? (
+          {!asOf ? (
+            <div className="py-14 px-4 text-center border-2 border-dashed border-slate-200 rounded-xl">
+              <FiCalendar className="mx-auto h-8 w-8 text-indigo-400 mb-3" />
+              <p className="text-base font-semibold text-slate-800 mb-1">
+                Select a cut-off date to view the report
+              </p>
+              <p className="text-sm text-slate-500 max-w-xl mx-auto">
+                Once a date is picked you will see Low, Moderate and High risk counts bank-wide and per
+                branch, and the customers profiled up to that date. Click a branch to see its customers.
+              </p>
+            </div>
+          ) : loading && !report ? (
             <div className="py-12 text-center text-slate-500 text-sm">Loading report...</div>
           ) : report ? (
             <div className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
@@ -329,7 +377,10 @@ export default function AsOfRiskReport({ apiPrefix = "admin", sectionNumber = 4 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                   <div>
                     <h3 className="text-base font-semibold text-slate-800">By Branch</h3>
-                    <p className="text-xs text-slate-500">{report.periods[branchPeriod].label}</p>
+                    <p className="text-xs text-slate-500">
+                      {report.periods[branchPeriod].label}
+                      {branchId === "all" && " — click a branch or a count to see its customers"}
+                    </p>
                   </div>
                   <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden text-sm">
                     {PERIODS.map((p) => (
@@ -360,14 +411,33 @@ export default function AsOfRiskReport({ apiPrefix = "admin", sectionNumber = 4 
                     <tbody className="divide-y divide-slate-100">
                       {branchRows.map((b) => {
                         const s = b[branchPeriod];
+                        const clickable = b.branch_id !== null && b.branch_id !== undefined;
                         return (
-                          <tr key={b.branch_id ?? "unassigned"} className="hover:bg-slate-50">
+                          <tr
+                            key={b.branch_id ?? "unassigned"}
+                            onClick={clickable ? () => drillDown(b) : undefined}
+                            className={clickable ? "hover:bg-indigo-50 cursor-pointer" : "hover:bg-slate-50"}
+                            title={clickable ? `View customers of ${b.branch_name}` : undefined}
+                          >
                             <td className="px-4 py-2 text-slate-800">
                               {b.branch_name}
                               <span className="text-xs text-slate-400 ml-2">{b.brak}</span>
                             </td>
                             {LEVELS.map((l) => (
-                              <td key={l.key} className={`px-4 py-2 text-right tabular-nums ${s[l.key] ? l.text : "text-slate-300"}`}>
+                              <td
+                                key={l.key}
+                                onClick={
+                                  clickable && s[l.key]
+                                    ? (e) => {
+                                        e.stopPropagation();
+                                        drillDown(b, l.value);
+                                      }
+                                    : undefined
+                                }
+                                className={`px-4 py-2 text-right tabular-nums ${
+                                  s[l.key] ? `${l.text} ${clickable ? "hover:underline" : ""}` : "text-slate-300"
+                                }`}
+                              >
                                 {s[l.key].toLocaleString()}
                               </td>
                             ))}
@@ -392,10 +462,21 @@ export default function AsOfRiskReport({ apiPrefix = "admin", sectionNumber = 4 
               </div>
 
               {/* Profiles list */}
-              <div>
+              <div ref={profilesRef} className="scroll-mt-4">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-3">
                   <div>
-                    <h3 className="text-base font-semibold text-slate-800">Risk Profiles</h3>
+                    <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2 flex-wrap">
+                      Customers — {selectedBranchName}
+                      {branchId !== "all" && (
+                        <button
+                          type="button"
+                          onClick={() => setBranchId("all")}
+                          className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                        >
+                          <FiArrowLeft /> Back to bank-wide
+                        </button>
+                      )}
+                    </h3>
                     <p className="text-xs text-slate-500">
                       {report.periods[profilesScope].label} — {report.profiles_total.toLocaleString()} profile(s)
                       {report.profiles_truncated && ` (showing latest ${report.profiles.length.toLocaleString()})`}
