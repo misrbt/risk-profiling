@@ -93,6 +93,7 @@ Route::middleware(['auth:sanctum', 'status'])->prefix('admin')->group(function (
         Route::get('/', [CustomerController::class, 'getDashboardData']);
         Route::get('/branch-stats', [CustomerController::class, 'getBranchStats']);
         Route::get('/analytics', [CustomerController::class, 'getAnalyticsData']);
+        Route::get('/as-of', [CustomerController::class, 'getAsOfReport']);
     });
 
     // Risk Settings Management - Admin has full access (unrestricted)

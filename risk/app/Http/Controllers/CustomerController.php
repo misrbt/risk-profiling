@@ -828,6 +828,243 @@ class CustomerController extends Controller
     }
 
     /**
+     * As-of (cut-off date) risk profiling report.
+     *
+     * Counts risk profiles by risk level for the selected as-of date:
+     *  - daily:      profiles created on the as-of date
+     *  - monthly:    month-to-date (1st of the month up to the as-of date)
+     *  - yearly:     year-to-date (Jan 1 up to the as-of date)
+     *  - cumulative: all profiles created up to and including the as-of date
+     *
+     * Returns bank-wide totals, a per-branch breakdown, a monthly breakdown for
+     * the as-of year, and the list of profiles for the selected scope.
+     *
+     * Query params:
+     *  - as_of:          Y-m-d (defaults to today, user timezone)
+     *  - branch_id:      branch id or "all" (default "all" = bank-wide)
+     *  - profiles_scope: daily|monthly|yearly|cumulative (default daily)
+     */
+    public function getAsOfReport(Request $request)
+    {
+        $validated = $request->validate([
+            'as_of' => 'nullable|date_format:Y-m-d',
+            'branch_id' => 'nullable|string|max:20',
+            'profiles_scope' => 'nullable|in:daily,monthly,yearly,cumulative',
+        ]);
+
+        $tz = config('app.user_timezone', 'Asia/Manila');
+        $asOf = isset($validated['as_of'])
+            ? \Carbon\Carbon::createFromFormat('Y-m-d', $validated['as_of'], $tz)->startOfDay()
+            : now($tz)->startOfDay();
+
+        if ($asOf->greaterThan(now($tz)->endOfDay())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The as-of date cannot be in the future.',
+            ], 422);
+        }
+
+        $branchId = $validated['branch_id'] ?? 'all';
+        if ($branchId !== 'all' && ! ctype_digit((string) $branchId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid branch.',
+            ], 422);
+        }
+        $profilesScope = $validated['profiles_scope'] ?? 'daily';
+
+        // Period boundaries are computed in the user's timezone, then converted
+        // to UTC because created_at is stored in UTC.
+        $cutoff = $asOf->copy()->addDay(); // exclusive upper bound (end of as-of date)
+        $starts = [
+            'daily' => $asOf->copy(),
+            'monthly' => $asOf->copy()->startOfMonth(),
+            'yearly' => $asOf->copy()->startOfYear(),
+            'cumulative' => null,
+        ];
+        $cutoffUtc = $cutoff->copy()->utc();
+        $startsUtc = array_map(fn ($s) => $s ? $s->copy()->utc() : null, $starts);
+
+        $levels = [
+            'low' => 'LOW RISK',
+            'moderate' => 'MODERATE RISK',
+            'high' => 'HIGH RISK',
+        ];
+
+        $scopedQuery = function () use ($branchId, $cutoffUtc) {
+            $query = $this->applyBranchFilter(Customer::query())
+                ->where('customers.created_at', '<', $cutoffUtc);
+            if ($branchId !== 'all') {
+                $query->where('customers.branch_id', (int) $branchId);
+            }
+
+            return $query;
+        };
+
+        // Build one aggregate SELECT covering every period x risk level.
+        $selects = [];
+        $bindings = [];
+        foreach ($startsUtc as $period => $startUtc) {
+            $periodCond = $startUtc ? 'customers.created_at >= ?' : '1=1';
+            foreach ($levels as $key => $label) {
+                $selects[] = "SUM(CASE WHEN {$periodCond} AND customers.risk_level = ? THEN 1 ELSE 0 END) as {$period}_{$key}";
+                if ($startUtc) {
+                    $bindings[] = $startUtc;
+                }
+                $bindings[] = $label;
+            }
+            $selects[] = "SUM(CASE WHEN {$periodCond} THEN 1 ELSE 0 END) as {$period}_total";
+            if ($startUtc) {
+                $bindings[] = $startUtc;
+            }
+        }
+        $aggregateSql = implode(', ', $selects);
+
+        $formatPeriods = function ($row) use ($starts, $levels) {
+            $result = [];
+            foreach (array_keys($starts) as $period) {
+                $entry = [];
+                foreach (array_keys($levels) as $key) {
+                    $entry[$key] = (int) ($row->{"{$period}_{$key}"} ?? 0);
+                }
+                $entry['total'] = (int) ($row->{"{$period}_total"} ?? 0);
+                $result[$period] = $entry;
+            }
+
+            return $result;
+        };
+
+        // Bank-wide (or selected branch) summary
+        $summaryRow = $scopedQuery()->selectRaw($aggregateSql, $bindings)->first();
+        $summary = $formatPeriods($summaryRow);
+
+        // Per-branch breakdown
+        $branchRows = $scopedQuery()
+            ->selectRaw('customers.branch_id, '.$aggregateSql, $bindings)
+            ->groupBy('customers.branch_id')
+            ->get()
+            ->keyBy('branch_id');
+
+        $branchesQuery = \App\Models\Branch::orderBy('brcode');
+        if ($branchId !== 'all') {
+            $branchesQuery->where('id', (int) $branchId);
+        }
+        $branches = $branchesQuery->get();
+
+        $branchBreakdown = $branches->map(function ($branch) use ($branchRows, $formatPeriods) {
+            $row = $branchRows->get($branch->id);
+
+            return array_merge([
+                'branch_id' => $branch->id,
+                'branch_name' => $branch->branch_name,
+                'brak' => $branch->brak,
+                'brcode' => $branch->brcode,
+            ], $formatPeriods($row ?? new \stdClass));
+        });
+
+        // Profiles that have no branch assigned
+        if ($branchId === 'all' && $branchRows->has('')) {
+            $branchBreakdown->push(array_merge([
+                'branch_id' => null,
+                'branch_name' => 'Unassigned',
+                'brak' => '-',
+                'brcode' => '-',
+            ], $formatPeriods($branchRows->get(''))));
+        }
+
+        // Hide branches the user is not allowed to see (regular users / managers)
+        $visibleBranchIds = $branchRows->keys()->all();
+        $user = Auth::user();
+        $user?->loadMissing('roles');
+        $unrestricted = $user && ($user->hasRole('admin') || $user->hasRole('compliance') || $user->hasRole('audit'));
+        if (! $unrestricted) {
+            $branchBreakdown = $branchBreakdown->filter(
+                fn ($b) => in_array($b['branch_id'], $visibleBranchIds)
+            );
+        }
+
+        // Monthly breakdown for the as-of year (Jan .. as-of month)
+        $yearStartUtc = $startsUtc['yearly'];
+        $monthExpr = "EXTRACT(MONTH FROM (customers.created_at AT TIME ZONE 'UTC') AT TIME ZONE '{$tz}')";
+        if (\Illuminate\Support\Facades\DB::connection()->getDriverName() !== 'pgsql') {
+            $monthExpr = 'MONTH(customers.created_at)';
+        }
+        $monthlyRows = $scopedQuery()
+            ->where('customers.created_at', '>=', $yearStartUtc)
+            ->selectRaw("{$monthExpr} as month")
+            ->selectRaw("SUM(CASE WHEN customers.risk_level = 'LOW RISK' THEN 1 ELSE 0 END) as low")
+            ->selectRaw("SUM(CASE WHEN customers.risk_level = 'MODERATE RISK' THEN 1 ELSE 0 END) as moderate")
+            ->selectRaw("SUM(CASE WHEN customers.risk_level = 'HIGH RISK' THEN 1 ELSE 0 END) as high")
+            ->selectRaw('COUNT(*) as total')
+            ->groupByRaw($monthExpr)
+            ->get()
+            ->keyBy(fn ($r) => (int) $r->month);
+
+        $monthlyBreakdown = [];
+        for ($m = 1; $m <= $asOf->month; $m++) {
+            $row = $monthlyRows->get($m);
+            $monthlyBreakdown[] = [
+                'month' => $m,
+                'period' => \Carbon\Carbon::create($asOf->year, $m, 1)->format('M Y'),
+                'low' => (int) ($row->low ?? 0),
+                'moderate' => (int) ($row->moderate ?? 0),
+                'high' => (int) ($row->high ?? 0),
+                'total' => (int) ($row->total ?? 0),
+            ];
+        }
+
+        // Profile list for the selected scope
+        $profileLimit = 1000;
+        $profilesQuery = $scopedQuery()->with(['branch:id,branch_name,brak', 'createdBy:id,first_name,last_name']);
+        if ($startsUtc[$profilesScope]) {
+            $profilesQuery->where('customers.created_at', '>=', $startsUtc[$profilesScope]);
+        }
+        $profilesTotal = (clone $profilesQuery)->count();
+        $profiles = $profilesQuery
+            ->orderBy('customers.created_at', 'desc')
+            ->take($profileLimit)
+            ->get(['id', 'name', 'total_score', 'risk_level', 'branch_id', 'created_by', 'created_at'])
+            ->map(function ($customer) use ($tz) {
+                $createdAt = \Carbon\Carbon::parse($customer->created_at)->timezone($tz);
+
+                return [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'totalScore' => $customer->total_score,
+                    'riskLevel' => $customer->risk_level,
+                    'branch_id' => $customer->branch_id,
+                    'branch_name' => $customer->branch->branch_name ?? 'Unassigned',
+                    'created_by' => $customer->createdBy
+                        ? trim(($customer->createdBy->first_name ?? '').' '.($customer->createdBy->last_name ?? ''))
+                        : null,
+                    'date_created' => $createdAt->format('M d, Y'),
+                    'time_created' => $createdAt->format('h:i A'),
+                    'created_at' => $createdAt->format('Y-m-d H:i:s'),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'as_of' => $asOf->format('Y-m-d'),
+            'as_of_label' => $asOf->format('F d, Y'),
+            'branch_id' => $branchId,
+            'periods' => [
+                'daily' => ['label' => $asOf->format('M d, Y'), 'from' => $asOf->format('Y-m-d'), 'to' => $asOf->format('Y-m-d')],
+                'monthly' => ['label' => $asOf->format('F Y').' (MTD)', 'from' => $starts['monthly']->format('Y-m-d'), 'to' => $asOf->format('Y-m-d')],
+                'yearly' => ['label' => $asOf->format('Y').' (YTD)', 'from' => $starts['yearly']->format('Y-m-d'), 'to' => $asOf->format('Y-m-d')],
+                'cumulative' => ['label' => 'As of '.$asOf->format('M d, Y'), 'from' => null, 'to' => $asOf->format('Y-m-d')],
+            ],
+            'summary' => $summary,
+            'branches' => $branchBreakdown->values(),
+            'monthly_breakdown' => $monthlyBreakdown,
+            'profiles_scope' => $profilesScope,
+            'profiles' => $profiles,
+            'profiles_total' => $profilesTotal,
+            'profiles_truncated' => $profilesTotal > $profileLimit,
+        ]);
+    }
+
+    /**
      * Helper method to generate customer initials
      */
     private function getCustomerInitials($name)

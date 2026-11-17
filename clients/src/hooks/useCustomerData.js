@@ -161,10 +161,32 @@ export const useCustomerData = () => {
   return { customers, loading, error, refetch: fetchCustomers };
 };
 
+const EMPTY_FILTERS = {
+  dateFrom: "", dateTo: "", asOfDate: "", riskLevel: "", search: "", branchId: "",
+};
+
+const MONTHS = { Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
+  Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12" };
+
+/**
+ * Returns the customer's creation date as "YYYY-MM-DD" so it can be compared
+ * with <input type="date"> values. `created_at` is already in the user's
+ * timezone ("YYYY-MM-DD HH:mm:ss"); `date_created` ("Oct 15, 2025") is the fallback.
+ */
+export const getCustomerDateKey = (customer) => {
+  const createdAt = customer?.created_at;
+  if (typeof createdAt === "string" && /^\d{4}-\d{2}-\d{2}/.test(createdAt)) {
+    return createdAt.slice(0, 10);
+  }
+  const match = /^([A-Za-z]{3})\s+(\d{1,2}),\s*(\d{4})$/.exec(customer?.date_created || "");
+  if (match && MONTHS[match[1]]) {
+    return `${match[3]}-${MONTHS[match[1]]}-${match[2].padStart(2, "0")}`;
+  }
+  return "";
+};
+
 export const useCustomerFilters = (customers, isComplianceOfficer) => {
-  const [filters, setFilters] = useState({
-    dateFrom: "", dateTo: "", riskLevel: "", search: "", branchId: "",
-  });
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
 
   const filteredCustomers = useMemo(() => {
     let filtered = [...customers];
@@ -179,12 +201,21 @@ export const useCustomerFilters = (customers, isComplianceOfficer) => {
       filtered = filtered.filter((customer) => customer.riskLevel === filters.riskLevel);
     }
 
-    if (filters.dateFrom) {
-      filtered = filtered.filter((customer) => customer.date_created >= filters.dateFrom);
+    // Date range + as-of (cut-off) date. All bounds are inclusive "YYYY-MM-DD".
+    // The as-of date acts as a cut-off: only profiles created on or before it are shown.
+    let upperBound = filters.dateTo || "";
+    if (filters.asOfDate && (!upperBound || filters.asOfDate < upperBound)) {
+      upperBound = filters.asOfDate;
     }
 
-    if (filters.dateTo) {
-      filtered = filtered.filter((customer) => customer.date_created <= filters.dateTo);
+    if (filters.dateFrom || upperBound) {
+      filtered = filtered.filter((customer) => {
+        const day = getCustomerDateKey(customer);
+        if (!day) return false;
+        if (filters.dateFrom && day < filters.dateFrom) return false;
+        if (upperBound && day > upperBound) return false;
+        return true;
+      });
     }
 
     if (filters.branchId && isComplianceOfficer) {
@@ -203,7 +234,7 @@ export const useCustomerFilters = (customers, isComplianceOfficer) => {
   };
 
   const handleClearFilters = () => {
-    setFilters({ dateFrom: "", dateTo: "", riskLevel: "", search: "", branchId: "" });
+    setFilters(EMPTY_FILTERS);
   };
 
   return { filteredCustomers, filters, handleFilterChange, handleClearFilters };

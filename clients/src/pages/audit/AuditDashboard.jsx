@@ -38,6 +38,7 @@ import {
 } from "react-icons/fi";
 import { useAuth } from "../../contexts/AuthContext";
 import api from "../../services/api";
+import AsOfRiskReport from "../../components/dashboard/AsOfRiskReport";
 import { API_ENDPOINTS } from "../../config/constants";
 
 const AuditDashboard = () => {
@@ -1012,6 +1013,9 @@ const AuditDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Section 4: As-of Date Risk Profiling Report */}
+      <AsOfRiskReport apiPrefix="audit" sectionNumber={4} />
     </div>
   );
 };
