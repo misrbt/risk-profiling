@@ -16,6 +16,7 @@ Route::middleware(['auth:sanctum', 'status', 'role:compliance'])->prefix('compli
         Route::get('/', [CustomerController::class, 'getDashboardData']);
         Route::get('/branch-stats', [CustomerController::class, 'getBranchStats']);
         Route::get('/analytics', [CustomerController::class, 'getAnalyticsData']);
+        Route::get('/as-of', [CustomerController::class, 'getAsOfReport']);
     });
 
     // User Activity routes - Admin and Compliance only

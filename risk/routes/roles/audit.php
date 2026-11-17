@@ -14,6 +14,7 @@ Route::middleware(['auth:sanctum', 'status', 'role:audit'])->prefix('audit')->gr
         Route::get('/', [CustomerController::class, 'getDashboardData']);
         Route::get('/branch-stats', [CustomerController::class, 'getBranchStats']);
         Route::get('/analytics', [CustomerController::class, 'getAnalyticsData']);
+        Route::get('/as-of', [CustomerController::class, 'getAsOfReport']);
     });
 
     // User Activity routes - Audit role has full read access to user activities

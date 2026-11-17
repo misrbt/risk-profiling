@@ -32,7 +32,7 @@ const CustomerFilters = ({
       <div 
         className={`transition-all duration-300 ease-in-out overflow-hidden ${
           showFilters 
-            ? 'max-h-96 opacity-100' 
+            ? 'max-h-[720px] opacity-100' 
             : 'max-h-0 opacity-0'
         }`}
       >
@@ -46,7 +46,7 @@ const CustomerFilters = ({
 
           {/* Advanced Filters Row */}
           <div>
-            <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isComplianceOfficer ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isComplianceOfficer ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
 
             {/* Date From Filter */}
             <div>
@@ -54,6 +54,7 @@ const CustomerFilters = ({
               <input
                 type="date"
                 value={filters.dateFrom}
+                max={filters.dateTo || filters.asOfDate || undefined}
                 onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
@@ -65,7 +66,20 @@ const CustomerFilters = ({
               <input
                 type="date"
                 value={filters.dateTo}
+                min={filters.dateFrom || undefined}
                 onChange={(e) => handleFilterChange("dateTo", e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+
+            {/* As-of (Cut-off) Date Filter */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">As of (Cut-off) Date</label>
+              <input
+                type="date"
+                value={filters.asOfDate || ""}
+                onChange={(e) => handleFilterChange("asOfDate", e.target.value)}
+                title="Show only risk profiles created on or before this date"
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
             </div>
@@ -105,7 +119,14 @@ const CustomerFilters = ({
           </div>
 
             {/* Filter Actions */}
-            <div className="flex justify-end mt-4 pt-4 border-t">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-4 border-t">
+              <p className="text-xs text-slate-500">
+                {filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo
+                  ? <span className="text-red-600">From Date is after To Date — no profiles will match.</span>
+                  : filters.asOfDate
+                    ? `Showing risk profiles as of ${new Date(filters.asOfDate + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} (cut-off).`
+                    : "Dates are inclusive."}
+              </p>
               <Button variant="outline" onClick={handleClearFilters} className="text-sm">
                 Clear Filters
               </Button>

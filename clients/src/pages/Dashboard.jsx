@@ -34,6 +34,7 @@ import {
 import { usePermissions } from "../hooks/usePermissions";
 import PermissionGate from "../components/auth/PermissionGate";
 import { PERMISSIONS } from "../config/permissions";
+import AsOfRiskReport from "../components/dashboard/AsOfRiskReport";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -1232,6 +1233,11 @@ export default function Dashboard() {
             </div>
           )}
         </>
+      )}
+
+      {/* Section 4: As-of Date Risk Profiling Report - Compliance only */}
+      {isComplianceUser() && (
+        <AsOfRiskReport apiPrefix="compliance" sectionNumber={4} />
       )}
     </div>
   );
